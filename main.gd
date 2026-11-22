@@ -185,13 +185,17 @@ func _ready() -> void:
 				get_tree().paused = true)
 		if OS.has_environment("WW_ENDTEST"):
 			get_tree().create_timer(1.0).timeout.connect(func(): kills = 123; level = 7; _end(false))
+		if OS.has_environment("WW_ZIGZAG"):   # Test: Richtung mehrfach wechseln, danach Kamera-Winkel ausgeben
+			for k in 6:
+				get_tree().create_timer(0.5 + 0.5 * k).timeout.connect(func():
+					_set_move_target(player.position + Vector3(8 * (1 if k % 2 == 0 else -1), 0, 6 * (-1 if k % 3 == 0 else 1)), false))
 		if OS.has_environment("WW_CLICK"):
 			var xz := OS.get_environment("WW_CLICK").split(",")
 			get_tree().create_timer(0.8).timeout.connect(func(): _set_move_target(Vector3(float(xz[0]), 0, float(xz[1])), true))
 		if OS.has_environment("WW_LEVELUP"):
 			get_tree().create_timer(1.2).timeout.connect(_level_up)
 		get_tree().create_timer(float(OS.get_environment("WW_T")) if OS.has_environment("WW_T") else 6.0).timeout.connect(func():
-			print("FPS ", Engine.get_frames_per_second(), " enemies=", enemies.size(), " player=", player.position.snapped(Vector3(0.1, 0.1, 0.1)), " target=", has_target, move_target.snapped(Vector3(0.1, 0.1, 0.1)), " mitte=", (_ground_at(get_viewport().get_visible_rect().size / 2.0) as Vector3).snapped(Vector3(0.1, 0.1, 0.1)))
+			print("FPS ", Engine.get_frames_per_second(), " enemies=", enemies.size(), " player=", player.position.snapped(Vector3(0.1, 0.1, 0.1)), " target=", has_target, move_target.snapped(Vector3(0.1, 0.1, 0.1)), " cam_rot=", cam.rotation_degrees.snapped(Vector3(0.01, 0.01, 0.01)), " mitte=", (_ground_at(get_viewport().get_visible_rect().size / 2.0) as Vector3).snapped(Vector3(0.1, 0.1, 0.1)))
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("WW_OUT"))
 			get_tree().quit())
 
@@ -642,7 +646,7 @@ func _process(delta: float) -> void:
 	if regen > 0.0:
 		hp = minf(max_hp, hp + regen * delta)
 	_move_player(delta)
-	_update_camera()
+	_update_camera(delta)
 	_spawn_logic(delta)
 	_update_enemies(delta)
 	_update_weapons(delta)
@@ -705,14 +709,25 @@ func _move_player(delta: float) -> void:
 func _key_axis(neg: int, pos: int) -> float:
 	return float(Input.is_physical_key_pressed(pos)) - float(Input.is_physical_key_pressed(neg))
 
-func _update_camera() -> void:
+var cam_snap := true
+
+func _update_camera(delta: float) -> void:
 	if not OS.has_environment("WW_SHOT"):
-		cam_zoom = lerpf(cam_zoom, zoom_target, 0.15)
-	var target := player.position + Vector3(0, 10, 6.5) * cam_zoom
+		cam_zoom = lerpf(cam_zoom, zoom_target, 1.0 - exp(-10.0 * delta))
+	# Feste Ausrichtung: die Kamera folgt nur mit der Position. Früher wurde sie jedes Bild auf den Spieler gerichtet; weil sie
+	# ihm hinterherläuft, hat sich dabei bei jedem Richtungswechsel der Winkel verändert (Kamera-Kippen).
+	var offset := Vector3(0, 10, 6.5)
+	var look_dir_fixed := Vector3(0, -9.5, -6.5)       # Blick vom Offset zum Spieler (Brusthöhe), unabhängig vom Zoom
 	if OS.has_environment("WW_SIDE"):
-		target = player.position + Vector3(0, 1.8, 9.0) * cam_zoom
-	cam.position = cam.position.lerp(target, 0.15)
-	cam.look_at(player.position + Vector3(0, 1.0 if OS.has_environment("WW_SIDE") else 0.5, 0))
+		offset = Vector3(0, 1.8, 9.0)
+		look_dir_fixed = Vector3(0, -0.8, -9.0)
+	var target := player.position + offset * cam_zoom
+	if cam_snap:
+		cam.position = target
+		cam_snap = false
+	else:
+		cam.position = cam.position.lerp(target, 1.0 - exp(-14.0 * delta))
+	cam.basis = Basis.looking_at(look_dir_fixed, Vector3.UP)
 
 # ---------- Elfen-Animation (prozedural auf dem Rig) ----------
 # Knochen (UniRig-Namen bone_N): 0 Hüfte, 1-2 Wirbelsäule, 3 Brust, 4-6 Hals/Kopf,
