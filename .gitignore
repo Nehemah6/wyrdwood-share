@@ -1,0 +1,4 @@
+.godot/
+*.import
+# von Godot beim Import neben die GLBs geschriebene Texturen
+assetdesk/3dmodels/**/*.png
