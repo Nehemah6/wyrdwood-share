@@ -41,7 +41,8 @@ func _roots_fire(delta: float, lvl: int) -> void:
 		return
 	cands.shuffle()
 	cd["roots"] = st["cd"] * g.cd_mult
-	for k in mini(int(st["count"]), cands.size()):
+	g.play_cast("slam", 0.6)
+	for k in mini(int(st["count"]) + g.proj_bonus, cands.size()):
 		var p: Vector3 = (cands[k]["node"] as Node3D).position
 		p.y = 0.0
 		roots_pending.append({"pos": p, "t": 0.0, "dur": 0.55, "st": st, "spikes": [], "phase": 0})
@@ -94,17 +95,17 @@ func _scythe_fire(delta: float, lvl: int) -> void:
 	if cd["scythe"] > 0.0:
 		return
 	var st := Defs.weapon_stats("scythe", lvl)
-	var t: Dictionary = g._nearest(g.player.position, 14.0)
+	var t: Dictionary = g._nearest(g.player.position, 12.0)
 	if t.is_empty():
 		return
 	cd["scythe"] = st["cd"] * g.cd_mult
 	var base: Vector3 = (t["node"] as Node3D).position - g.player.position
 	base.y = 0.0
 	base = base.normalized()
-	var cnt: int = st["count"]
+	var cnt: int = int(st["count"]) + g.proj_bonus
 	g.aim_dir = base
 	g.aim_t = 0.6
-	g.cast_t = 0.3
+	g.play_cast("sweep", 0.45)
 	for k in cnt:
 		var d := base.rotated(Vector3.UP, (k - (cnt - 1) * 0.5) * 0.7)
 		var n: Node3D = g._make_model("weapons/moon_scythe.glb", Color(0.7, 0.9, 1.0), 0.9)
@@ -136,10 +137,10 @@ func _scythes_update(delta: float) -> void:
 		var p: Vector3
 		if k < 0.5:
 			var u := k * 2.0
-			p = (s["origin"] as Vector3).lerp(end, 1.0 - pow(1.0 - u, 2.0))
+			p = g._fold_arena((s["origin"] as Vector3).lerp(end, 1.0 - pow(1.0 - u, 2.0)))   # prallt an Wänden ab
 		else:
 			var u2 := (k - 0.5) * 2.0
-			p = end.lerp(home, u2 * u2)
+			p = (g._fold_arena(end) as Vector3).lerp(home, u2 * u2)
 		n.position = p
 		n.rotation.y += delta * 16.0
 		for e in g.enemies.duplicate():
@@ -160,10 +161,28 @@ func _chain_fire(delta: float, lvl: int) -> void:
 	if cd["chain"] > 0.0:
 		return
 	var st := Defs.weapon_stats("chain", lvl)
-	var first: Dictionary = g._nearest(g.player.position, 12.0)
+	var first: Dictionary = g._nearest(g.player.position, 11.0)
 	if first.is_empty():
 		return
 	cd["chain"] = st["cd"] * g.cd_mult
+	var used: Array = []
+	var n_chains: int = int(st["chains"]) + g.proj_bonus
+	for ci in n_chains:   # weitere Ketten starten beim nächsten noch nicht getroffenen Gegner
+		if ci > 0:
+			first = {}
+			var bd0 := 11.0 * 11.0
+			for e in g.enemies:
+				if e in used:
+					continue
+				var d0: float = ((e["node"] as Node3D).position).distance_squared_to(g.player.position)
+				if d0 < bd0:
+					bd0 = d0
+					first = e
+			if first.is_empty():
+				break
+		used += _chain_one(first, st)
+
+func _chain_one(first: Dictionary, st: Dictionary) -> Array:
 	var visited: Array = [first]
 	var pts: Array = [g.player.position + Vector3(0, 1.4, 0), (first["node"] as Node3D).position + Vector3(0, 0.9, 0)]
 	var cur: Dictionary = first
@@ -185,13 +204,14 @@ func _chain_fire(delta: float, lvl: int) -> void:
 		cur = best
 	g.aim_dir = (((first["node"] as Node3D).position - g.player.position) * Vector3(1, 0, 1)).normalized()
 	g.aim_t = 0.5
-	g.cast_t = 0.25
+	g.play_cast("point", 0.3)
 	for e in visited:
 		g._damage_enemy(e, st["dmg"])
 		g.vfx.burst("gem", (e["node"] as Node3D).position + Vector3(0, 0.9, 0))
 	_make_bolt(pts)
 	g.vfx.flash(pts[1], Color(0.7, 0.85, 1.0), 3.0, 6.0, 0.2)
 	g.vfx.add_shake(0.08)
+	return visited
 
 func _make_bolt(pts: Array) -> void:
 	var node := MeshInstance3D.new()

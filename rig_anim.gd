@@ -40,6 +40,15 @@ const CFG := {
 		"file": "res://assetdesk/3dmodels/creatures/corrupted_stag_v2.glb", "longest": 4.0, "gait": "diag",
 		"amp": 0.5, "freq": 1.7, "bob": 0.02,
 	},
+	# --- Totenacker (Dateien kommen aus dem Asset Desk; fehlt eine, nimmt main.gd den Platzhalter "alt")
+	"ghoul": {"file": "res://assetdesk/3dmodels/creatures/grave_ghoul.glb", "longest": 1.3, "gait": "biped", "amp": 0.6, "freq": 2.5, "bob": 0.04, "lean": 0.25, "arm_amp": 0.9},
+	"skeleton": {"file": "res://assetdesk/3dmodels/creatures/bone_soldier.glb", "longest": 1.6, "gait": "biped", "amp": 0.5, "freq": 2.1, "bob": 0.03, "arm_amp": 0.4, "sway": 0.05},
+	"hound": {"file": "res://assetdesk/3dmodels/creatures/corpse_hound.glb", "longest": 1.2, "gait": "diag", "amp": 0.75, "freq": 2.5, "bob": 0.03},
+	"flesh": {"file": "res://assetdesk/3dmodels/creatures/stitched_brute.glb", "longest": 2.0, "gait": "biped", "amp": 0.3, "freq": 1.6, "bob": 0.04, "arm_amp": 0.4, "sway": 0.08},
+	"witch": {"file": "res://assetdesk/3dmodels/creatures/bone_witch.glb", "longest": 1.5, "gait": "biped", "amp": 0.45, "freq": 2.0, "bob": 0.03, "arm_amp": 0.35, "sway": 0.05},
+	"priest": {"file": "res://assetdesk/3dmodels/creatures/plague_priest.glb", "longest": 1.4, "gait": "biped", "amp": 0.5, "freq": 2.2, "bob": 0.04, "arm_amp": 0.5, "sway": 0.06},
+	"horror": {"file": "res://assetdesk/3dmodels/creatures/bone_abomination.glb", "longest": 2.6, "gait": "biped", "amp": 0.3, "freq": 1.8, "bob": 0.04, "arm_amp": 0.5, "sway": 0.08},
+	"warden": {"file": "res://assetdesk/3dmodels/creatures/grave_warden.glb", "longest": 4.0, "gait": "biped", "amp": 0.35, "freq": 1.5, "bob": 0.03, "arm_amp": 0.3, "sway": 0.05},
 }
 
 static var types := {}   # Typ -> Dictionary (Cache)
@@ -356,11 +365,32 @@ static func get_type(type: String, cfg_in: Dictionary = {}) -> Dictionary:
 		var gq := s.get_bone_global_rest(i).basis.orthonormalized().get_rotation_quaternion()
 		bones[i] = [rq, gq, gq.inverse()]
 	var root: int = auto["root"]
+	# Schulter nie im Rumpf: erster Knochen hinter der Wirbelsäule (sonst kippt beim Arm-Absenken der Oberkörper mit)
+	var trunk: Array = (lay["spine"] as Array) + (lay["head"] as Array) + [auto["root"]]
+	for a in lay["arms"]:
+		var chain := []
+		var b: int = a[1]
+		while b >= 0 and not trunk.has(b):
+			chain.push_front(b)
+			b = s.get_bone_parent(b)
+		if trunk.has(a[0]) and not chain.is_empty():
+			a[0] = chain[0] if chain.size() > 1 or chain[0] != a[1] else a[1]
 	var arm_sides := []
+	var arm_drop := []    # [Achse, Winkel]: hebt die T-Pose auf (Arm hängt danach ~65° unter der Waagerechten)
+	var hang: float = deg_to_rad(float(cfg.get("arm_hang", 65.0)))
 	for a in lay["arms"]:
 		arm_sides.append(signf((s.get_bone_global_rest(a[0]).origin - s.get_bone_global_rest(root).origin).dot(side)))
+		var dir: Vector3 = s.get_bone_global_rest(a[1]).origin - s.get_bone_global_rest(a[0]).origin
+		if dir.length() < 0.0001:
+			arm_drop.append([Vector3.FORWARD, 0.0])
+			continue
+		dir = dir.normalized()
+		var below := asin(clampf(-dir.y, -1.0, 1.0))        # Winkel unter der Waagerechten (Rest-Pose)
+		var hz := Vector3(dir.x, 0.0, dir.z)
+		var axis := hz.cross(Vector3.DOWN).normalized() if hz.length() > 0.01 else Vector3.FORWARD
+		arm_drop.append([axis, clampf(hang - below, 0.0, 1.5)])
 	d = {"ok": true, "scene": scene, "scale": sc, "yaw": -atan2(f.x, f.z), "y_off": -aabb.position.y * sc,
-		"f": f, "s": side, "bones": bones, "legs": legs, "arm_sides": arm_sides, "cfg": cfg, "lay": lay, "root": root,
+		"f": f, "s": side, "bones": bones, "legs": legs, "arm_sides": arm_sides, "arm_drop": arm_drop, "cfg": cfg, "lay": lay, "root": root,
 		"root_origin": s.get_bone_rest(root).origin}
 	types[type] = d
 	tmp.free()
@@ -466,7 +496,10 @@ func update(delta: float, speed: float) -> void:
 			var aa: float = cfg.get("arm_amp", 0.5)
 			for i in arms.size():
 				var ph2 := p + (PI if t["arm_sides"][i] > 0.0 else 0.0)
-				_pose(arms[i][0], Quaternion(s, -aa * sin(ph2)))
+				var dr: Array = t["arm_drop"][i]
+				# erst absenken (T-Pose -> hängend, leicht atmend), dann Laufschwung um die Seitenachse
+				var drop_q := Quaternion(dr[0], float(dr[1]) - 0.06 * absf(sin(p)))
+				_pose(arms[i][0], Quaternion(s, -aa * sin(ph2)) * drop_q)
 				if arms[i].size() > 1:
 					_pose(arms[i][1], Quaternion(s, -0.3 - 0.3 * maxf(0.0, -sin(ph2))))
 	sk.set_bone_pose_position(root, t["root_origin"] + Vector3(0, vert, 0))

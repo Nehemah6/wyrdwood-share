@@ -33,9 +33,20 @@ static func btn(text: String, size: Vector2, font: int = 32, accent: Color = Col
 	b.add_theme_stylebox_override("normal", sb(Color(0.05, 0.11, 0.11, 0.92), Color(accent.r, accent.g, accent.b, 0.5), 10, 2))
 	b.add_theme_stylebox_override("hover", sb(Color(0.1, 0.24, 0.23, 0.96), accent, 10, 2))
 	b.add_theme_stylebox_override("pressed", sb(Color(0.16, 0.38, 0.35, 1), accent, 10, 2))
+	b.add_theme_stylebox_override("focus", sb(Color(0.1, 0.24, 0.23, 0.35), Color(1, 1, 1, 0.95), 10, 3))   # Controller-Auswahl
 	b.add_theme_stylebox_override("disabled", sb(Color(0.05, 0.07, 0.07, 0.8), Color(0.3, 0.35, 0.35, 0.4), 10, 1))
 	b.add_theme_color_override("font_disabled_color", Color(0.5, 0.55, 0.55))
 	return b
+
+# Controller: ersten Knopf (oder den gewünschten) fokussieren, damit Stick/Steuerkreuz + A sofort funktionieren
+static func focus_first(root: Node, force: bool = false) -> void:
+	if not force and Input.get_connected_joypads().is_empty():
+		return      # nur mit Controller: Maus-Spieler sehen keinen Dauer-Rahmen
+	for b in root.find_children("*", "Button", true, false):
+		var bb := b as Button
+		if bb.visible and not bb.disabled and bb.focus_mode != Control.FOCUS_NONE:
+			bb.call_deferred("grab_focus")
+			return
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -43,9 +54,11 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_show("main")
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	var k := event as InputEventKey
-	if k != null and k.pressed and not k.echo and k.keycode == KEY_ESCAPE and screen != "main":
+func _unhandled_input(event: InputEvent) -> void:
+	if (event is InputEventJoypadButton or event is InputEventJoypadMotion) and get_viewport().gui_get_focus_owner() == null:
+		focus_first(content, true)   # Controller erst jetzt benutzt -> Auswahl einblenden
+	# Esc oder Controller B: eine Ebene zurück
+	if event.is_action_pressed("ui_cancel") and screen != "main":
 		_show("main")
 		get_viewport().set_input_as_handled()
 
@@ -65,6 +78,7 @@ func _show(which: String) -> void:
 		"levels": _build_levels()
 		"shop": _build_shop()
 		"options": _build_options()
+	focus_first(content)
 
 func _shards_label() -> Label:
 	var l := lab("Wurzelsplitter  %d" % Meta.shards, 32, Color(1.0, 0.85, 0.4))
@@ -103,7 +117,7 @@ func _panel_frame(title: String) -> VBoxContainer:
 	return v
 
 func _back_button(v: VBoxContainer) -> void:
-	var b := btn("Zurück  (Esc)", Vector2(300, 60), 28)
+	var b := btn("Zurück  (Esc / B)", Vector2(300, 60), 28)
 	b.pressed.connect(func(): _show("main"))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -138,52 +152,98 @@ func _build_main() -> void:
 	content.add_child(info)
 
 func _build_levels() -> void:
+	# Raster mit Vorschaubild je Level; scrollt, wenn es mehr Level werden. Letzte Kachel = "Bald mehr"
 	var v := _panel_frame("Level wählen")
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 28)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_child(row)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(1530, 690)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 24)
+	scroll.add_child(grid)
 	for id in Defs.LEVELS:
-		var d: Dictionary = Defs.LEVELS[id]
-		var open: bool = Meta.unlocked.has(id)
-		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(520, 480)
-		card.add_theme_stylebox_override("panel", sb(Color(0.05, 0.1, 0.1, 1), d["env"]["vfog"] if open else Color(0.4, 0.4, 0.4), 14, 2))
-		var pad := MarginContainer.new()
-		for side in ["left", "right", "top", "bottom"]:
-			pad.add_theme_constant_override("margin_" + side, 24)
-		card.add_child(pad)
-		var cv := VBoxContainer.new()
-		cv.add_theme_constant_override("separation", 14)
-		pad.add_child(cv)
-		cv.add_child(lab(d["name"], 42, Color(1, 1, 1)))
+		grid.add_child(_level_card(id))
+	var soon := PanelContainer.new()
+	soon.custom_minimum_size = Vector2(480, 660)
+	soon.add_theme_stylebox_override("panel", sb(Color(0.03, 0.06, 0.06, 0.6), Color(0.4, 0.5, 0.5, 0.35), 14, 2))
+	var sl := lab("Weitere Level\nfolgen …", 32, Color(0.55, 0.65, 0.65))
+	sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	soon.add_child(sl)
+	grid.add_child(soon)
+	_back_button(v)
+
+func _level_card(id: String) -> Control:
+	var d: Dictionary = Defs.LEVELS[id]
+	var open: bool = Meta.unlocked.has(id)
+	var accent: Color = d["env"]["vfog"]
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(480, 660)
+	var base := sb(Color(0.05, 0.1, 0.1, 1), Color(accent.r, accent.g, accent.b, 0.7) if open else Color(0.4, 0.4, 0.4, 0.6), 14, 2)
+	var hover := sb(Color(0.08, 0.15, 0.15, 1), Color(1, 1, 1, 0.9) if open else Color(0.6, 0.6, 0.6, 0.8), 14, 3)
+	card.add_theme_stylebox_override("panel", base)
+	card.mouse_entered.connect(func(): card.add_theme_stylebox_override("panel", hover))
+	card.mouse_exited.connect(func(): card.add_theme_stylebox_override("panel", base))
+	var pad := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, 18)
+	card.add_child(pad)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 10)
+	pad.add_child(cv)
+	# Vorschau: ui/levels/<id>.png, sonst Farbfläche der Stimmung
+	var thumb_path := "res://ui/levels/%s.png" % id
+	if ResourceLoader.exists(thumb_path):
+		var tr := TextureRect.new()
+		tr.texture = load(thumb_path)
+		tr.custom_minimum_size = Vector2(444, 250)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		if not open:
+			tr.modulate = Color(0.45, 0.45, 0.45)
+		cv.add_child(tr)
+	else:
 		var swatch := ColorRect.new()
-		swatch.custom_minimum_size = Vector2(0, 110)
+		swatch.custom_minimum_size = Vector2(444, 250)
 		swatch.color = (d["env"]["fog"] as Color).lerp(d["env"]["vfog"], 0.4)
 		cv.add_child(swatch)
-		var desc := lab(d["desc"], 24, Color(0.85, 0.92, 0.92))
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc.custom_minimum_size = Vector2(470, 0)
-		cv.add_child(desc)
-		var bt: float = float(Meta.best.get(id, 0.0))
-		cv.add_child(lab("Bestzeit %02d:%02d" % [int(bt) / 60, int(bt) % 60] if bt > 0.0 else "Noch nicht gespielt", 22, Color(0.7, 0.8, 0.8)))
-		var sp := Control.new()
-		sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		cv.add_child(sp)
-		if open:
-			var go := btn("Starten", Vector2(0, 66), 32)
-			go.pressed.connect(func(): start_run.emit(id))
-			cv.add_child(go)
-		else:
-			var cost: int = d["cost"]
-			var ub := btn("Freischalten  (%d)" % cost, Vector2(0, 66), 28, Color(1.0, 0.85, 0.4))
-			ub.disabled = Meta.shards < cost
-			ub.pressed.connect(func():
-				if Meta.unlock_level(id):
-					_show("levels"))
-			cv.add_child(ub)
-		row.add_child(card)
-	_back_button(v)
+	var head := HBoxContainer.new()
+	head.add_child(lab(d["name"], 36, Color(1, 1, 1)))
+	var sp0 := Control.new()
+	sp0.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(sp0)
+	var diff: int = d.get("diff", 1)
+	head.add_child(lab("Gefahr " + "●".repeat(diff) + "○".repeat(maxi(0, 3 - diff)), 22, Color(1.0, 0.55, 0.45) if diff >= 3 else Color(1.0, 0.8, 0.5)))
+	cv.add_child(head)
+	var desc := lab(d["desc"], 21, Color(0.85, 0.92, 0.92))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size = Vector2(440, 0)
+	cv.add_child(desc)
+	cv.add_child(lab("Boss: %s  ·  ab %d:%02d" % [d["boss"]["name"], int(d["boss"]["time"]) / 60, int(d["boss"]["time"]) % 60], 20, Color(0.85, 0.7, 1.0)))
+	var bt: float = float(Meta.best.get(id, 0.0))
+	cv.add_child(lab("Bestzeit %02d:%02d" % [int(bt) / 60, int(bt) % 60] if bt > 0.0 else "Noch nicht gespielt", 20, Color(0.7, 0.8, 0.8)))
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cv.add_child(sp)
+	if open:
+		var go := btn("Starten", Vector2(0, 62), 30)
+		go.pressed.connect(func(): start_run.emit(id))
+		cv.add_child(go)
+		card.gui_input.connect(func(ev: InputEvent):   # Klick auf die Kachel startet ebenfalls
+			var mb := ev as InputEventMouseButton
+			if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and mb.double_click:
+				start_run.emit(id))
+	else:
+		var cost: int = d["cost"]
+		var ub := btn("Freischalten  (%d Splitter)" % cost, Vector2(0, 62), 26, Color(1.0, 0.85, 0.4))
+		ub.disabled = Meta.shards < cost
+		ub.pressed.connect(func():
+			if Meta.unlock_level(id):
+				_show("levels"))
+		cv.add_child(ub)
+	return card
 
 func _build_shop() -> void:
 	var v := _panel_frame("Verstärkungen")
@@ -249,7 +309,7 @@ func _build_options() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(fs)
 	v.add_child(row)
-	var tips := lab("Steuerung:  WASD / Pfeile   oder   Maus (klicken oder halten = dorthin laufen)\nMausrad = Zoom  ·  Esc = Pause  ·  Level-Up: Karte anklicken oder Taste 1–3", 24, Color(0.8, 0.9, 0.9))
+	var tips := lab("Steuerung:  WASD / Pfeile   oder   Maus (klicken oder halten = dorthin laufen)\nMausrad = Zoom  ·  Esc = Pause  ·  Level-Up: Karte anklicken oder Taste 1–3\nController:  Stick = laufen  ·  A = wählen  ·  B = zurück  ·  LB/RB = Zoom  ·  Start = Pause", 24, Color(0.8, 0.9, 0.9))
 	tips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(tips)
 	var reset := btn("Speicherstand löschen", Vector2(520, 60), 26, Color(1.0, 0.5, 0.45))

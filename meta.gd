@@ -32,7 +32,7 @@ func load_save() -> void:
 	total_kills = int(d.get("total_kills", 0))
 
 func save() -> void:
-	if OS.has_environment("WW_SHOT") and not OS.has_environment("WW_SAVE"):
+	if (OS.has_environment("WW_SHOT") or OS.has_environment("WW_BOT")) and not OS.has_environment("WW_SAVE"):
 		return      # Testläufe fassen den echten Speicherstand nicht an
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -66,8 +66,8 @@ func unlock_level(id: String) -> bool:
 	return true
 
 # Ergebnis eines Laufs verbuchen; liefert verdiente Splitter
-func finish_run(seconds: float, kills: int, level_reached: int, victory: bool) -> int:
-	var base := kills * 0.4 + seconds / 60.0 * 12.0 + level_reached * 4.0 + (150.0 if victory else 0.0)
+func finish_run(seconds: float, kills: int, level_reached: int, victory: bool, bonus: int = 0) -> int:
+	var base := kills * 0.1 + seconds / 60.0 * 12.0 + level_reached * 3.0 + (150.0 if victory else 0.0) + bonus
 	var earned := int(round(base * (1.0 + 0.08 * lvl("m_shards"))))
 	shards += earned
 	runs += 1
