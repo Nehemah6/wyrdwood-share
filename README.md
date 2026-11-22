@@ -23,6 +23,7 @@ im Vollbild, **F11** wechselt ins Fenster. In 4K nutzt es automatisch FSR2 (67 %
 | | |
 |---|---|
 | WASD / Pfeiltasten | Bewegen |
+| Maus (links oder rechts) | Auf den Boden klicken = dorthin laufen; Taste halten = dem Cursor folgen (WASD hat Vorrang) |
 | Mausrad | Zoom (rein/raus) |
 | Level-Up | Karte anklicken oder Taste 1–3 |
 | Esc | Pause (auch: Lauf beenden, Vollbild) |

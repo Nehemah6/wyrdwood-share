@@ -249,7 +249,7 @@ func _build_options() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(fs)
 	v.add_child(row)
-	var tips := lab("Steuerung:  WASD / Pfeile  ·  Mausrad = Zoom  ·  Esc = Pause\nLevel-Up: Karte anklicken oder Taste 1–3", 24, Color(0.8, 0.9, 0.9))
+	var tips := lab("Steuerung:  WASD / Pfeile   oder   Maus (klicken oder halten = dorthin laufen)\nMausrad = Zoom  ·  Esc = Pause  ·  Level-Up: Karte anklicken oder Taste 1–3", 24, Color(0.8, 0.9, 0.9))
 	tips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(tips)
 	var reset := btn("Speicherstand löschen", Vector2(520, 60), 26, Color(1.0, 0.5, 0.45))

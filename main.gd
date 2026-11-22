@@ -39,6 +39,10 @@ const BOMB_RANGE := 9.0
 const SIGIL_ALPHA := 0.22   # Deckkraft des Runen-Siegels (fast durchsichtig)
 var view_rigs: Array = []
 var vfx: Vfx
+var mouse_down := false         # Maus: Taste gehalten = dem Cursor folgen, Klick = zum Punkt laufen
+var move_target := Vector3.ZERO
+var has_target := false
+var move_marker: MeshInstance3D
 var lv: Dictionary            # Level-Daten (defs.gd LEVELS)
 var win_time := 900.0
 var menu_mode := false
@@ -181,10 +185,13 @@ func _ready() -> void:
 				get_tree().paused = true)
 		if OS.has_environment("WW_ENDTEST"):
 			get_tree().create_timer(1.0).timeout.connect(func(): kills = 123; level = 7; _end(false))
+		if OS.has_environment("WW_CLICK"):
+			var xz := OS.get_environment("WW_CLICK").split(",")
+			get_tree().create_timer(0.8).timeout.connect(func(): _set_move_target(Vector3(float(xz[0]), 0, float(xz[1])), true))
 		if OS.has_environment("WW_LEVELUP"):
 			get_tree().create_timer(1.2).timeout.connect(_level_up)
-		get_tree().create_timer(6.0).timeout.connect(func():
-			print("FPS ", Engine.get_frames_per_second(), " enemies=", enemies.size())
+		get_tree().create_timer(float(OS.get_environment("WW_T")) if OS.has_environment("WW_T") else 6.0).timeout.connect(func():
+			print("FPS ", Engine.get_frames_per_second(), " enemies=", enemies.size(), " player=", player.position.snapped(Vector3(0.1, 0.1, 0.1)), " target=", has_target, move_target.snapped(Vector3(0.1, 0.1, 0.1)), " mitte=", (_ground_at(get_viewport().get_visible_rect().size / 2.0) as Vector3).snapped(Vector3(0.1, 0.1, 0.1)))
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("WW_OUT"))
 			get_tree().quit())
 
@@ -518,11 +525,72 @@ func _setup_ui() -> void:
 # ---------- Hauptschleife ----------
 func _unhandled_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
-	if mb != null and mb.pressed and not get_tree().paused:
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-			zoom_target = clampf(zoom_target - 0.1, ZOOM_MIN, ZOOM_MAX)
-		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			zoom_target = clampf(zoom_target + 0.1, ZOOM_MIN, ZOOM_MAX)
+	if mb == null:
+		return
+	if get_tree().paused or menu_mode or dead or won:
+		mouse_down = false
+		return
+	if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+		zoom_target = clampf(zoom_target - 0.1, ZOOM_MIN, ZOOM_MAX)
+	elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+		zoom_target = clampf(zoom_target + 0.1, ZOOM_MIN, ZOOM_MAX)
+	elif mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT:
+		mouse_down = mb.pressed
+		if mb.pressed:
+			_update_mouse_target(true)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		mouse_down = false
+
+# Punkt auf dem Boden (y = 0) unter einer Bildschirmposition
+func _ground_at(screen: Vector2) -> Variant:
+	var o := cam.project_ray_origin(screen)
+	var d := cam.project_ray_normal(screen)
+	if absf(d.y) < 0.001:
+		return null
+	var t := -o.y / d.y
+	if t < 0.0:
+		return null
+	return o + d * t
+
+func _set_move_target(p: Vector3, click: bool) -> void:
+	var off := p - player.position
+	off.y = 0.0
+	if off.length() > 60.0:
+		off = off.normalized() * 60.0
+	move_target = player.position + off
+	move_target.y = 0.0
+	has_target = true
+	if click:
+		vfx.ring(move_target, 0.15, 0.9, 0.45, Color(0.5, 1.0, 0.9, 0.9))
+
+func _update_mouse_target(click: bool) -> void:
+	var p = _ground_at(get_viewport().get_mouse_position())
+	if p != null:
+		_set_move_target(p, click)
+
+func _update_move_marker() -> void:
+	if move_marker == null:
+		move_marker = MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(1.1, 1.1)
+		move_marker.mesh = pm
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_texture = vfx.ring_tex
+		m.albedo_color = Color(0.5, 1.0, 0.9, 0.8)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		move_marker.material_override = m
+		move_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(move_marker)
+	move_marker.visible = has_target
+	if has_target:
+		move_marker.position = Vector3(move_target.x, 0.07, move_target.z)
+		var pulse := 1.0 + 0.12 * sin(time * 8.0)
+		move_marker.scale = Vector3(pulse, 1.0, pulse)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
@@ -597,6 +665,23 @@ func _move_player(delta: float) -> void:
 		Input.get_axis("ui_up", "ui_down") + _key_axis(KEY_W, KEY_S))
 	if OS.has_environment("WW_WALK"):
 		v = Vector3(1, 0, 0.4)
+	# Maus: Tastatur hat Vorrang; sonst zum Zielpunkt laufen (Taste gehalten = Ziel folgt dem Cursor)
+	if v.length() > 0.1:
+		has_target = false
+	elif has_target or mouse_down:
+		if mouse_down:
+			_update_mouse_target(false)
+		if has_target:
+			var to := move_target - player.position
+			to.y = 0.0
+			var dist := to.length()
+			if dist < 0.4:
+				if not mouse_down:
+					has_target = false
+				v = Vector3.ZERO
+			else:
+				v = to / dist * clampf(dist / 1.2, 0.35, 1.0)
+	_update_move_marker()
 	moving = v.length() > 0.1
 	_animate_player(delta)
 	var mdl := player.get_node("Model") as Node3D
@@ -1294,6 +1379,8 @@ func _build_card(c: Dictionary, idx: int) -> Control:
 	return panel
 
 func _level_up() -> void:
+	mouse_down = false
+	has_target = false
 	vfx.burst("level", player.position + Vector3(0, 0.8, 0))
 	vfx.ring(player.position, 0.5, 6.5, 0.7, Color(0.5, 1.0, 0.9, 1.0))
 	_sigil(player.position, 4.2, 1.1)
