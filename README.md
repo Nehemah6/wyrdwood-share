@@ -3,11 +3,18 @@
 Ein 3D-Survivors-Spiel (Top-Down, Dark-Fairytale-Wald): Du bist eine Elfen-Druidin, deine Waffen schießen von allein,
 du sammelst Kristalle, steigst auf und wählst Karten. Überlebe 15 Minuten; bei 10:00 erscheint der Boss.
 
-## Starten (CachyOS / Arch Linux)
-1. Godot und Git installieren: `sudo pacman -S godot git` (es muss **Godot 4.7** sein, nicht die .NET-Version; `godot --version` prüft das).
-2. Spiel herunterladen: `git clone git@github.com:Nehemah6/wyrdwood-share.git` (oder auf GitHub „Code → Download ZIP“ und entpacken).
-3. Starten: `godot --path wyrdwood-share` – oder `godot` öffnen, **Importieren**, `project.godot` wählen, dann **F5**.
-   Beim ersten Mal importiert Godot die Modelle (1–3 Minuten, ruhig warten).
+## Schnellstart (CachyOS / Arch Linux)
+```bash
+git clone https://github.com/Nehemah6/wyrdwood-share.git && cd wyrdwood-share && chmod +x install.sh start.sh && ./install.sh && ./start.sh
+```
+(Mit SSH-Schlüssel geht auch `git@github.com:Nehemah6/wyrdwood-share.git`; bei einem privaten Repo ist die Anmeldung bei GitHub nötig.
+Ohne Git: auf GitHub „Code → Download ZIP“, entpacken, im Ordner `chmod +x install.sh start.sh && ./install.sh && ./start.sh`.)
+
+- **`install.sh`** prüft, ob Godot 4.7 da ist, installiert es sonst per `pacman` (fragt nach dem sudo-Passwort) und importiert einmal die
+  Modelle (1–3 Minuten, ruhig warten). Ist Godot zu alt, sagt das Skript, wie du aktualisierst; es macht kein ungefragtes System-Update.
+  Probelauf ohne Änderungen: `DRY_RUN=1 ./install.sh`.
+- **`start.sh`** startet das Spiel. Zusätze gehen an Godot, z. B. Fenstermodus: `./start.sh --windowed`.
+- Andere Systeme: Godot 4.7 (Standard-Version, nicht .NET) von <https://godotengine.org/download> laden, `project.godot` importieren, F5.
 
 Läuft mit Vulkan (auf AMD über Mesa/RADV); bei der Radeon RX 9070 XT sollte ein aktuelles System ohne weiteres reichen. Das Spiel startet
 im Vollbild, **F11** wechselt ins Fenster. In 4K nutzt es automatisch FSR2 (67 % Renderauflösung). Bei Rucklern hilft ein kleineres Fenster.
