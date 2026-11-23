@@ -19,6 +19,21 @@ Ohne Git: auf GitHub „Code → Download ZIP“, entpacken, im Ordner `chmod +x
 Läuft mit Vulkan (auf AMD über Mesa/RADV); bei der Radeon RX 9070 XT sollte ein aktuelles System ohne weiteres reichen. Das Spiel startet
 im Vollbild, **F11** wechselt ins Fenster. In 4K nutzt es automatisch FSR2 (67 % Renderauflösung). Bei Rucklern hilft ein kleineres Fenster.
 
+## Aktualisieren (neuer Teststand)
+Im Spielordner:
+```bash
+git pull && ./install.sh
+```
+`git pull` holt den neuen Stand, `install.sh` importiert geänderte Modelle neu (geht schnell, wenn sich wenig geändert hat) und prüft
+nebenbei die Godot-Version. Danach wie gewohnt `./start.sh`.
+
+- **Ohne Git (ZIP):** neues ZIP laden, entpacken (am besten in einen frischen Ordner) und dort `chmod +x install.sh start.sh && ./install.sh`.
+- **Spielstand** (Wurzelsplitter, Verstärkungen, Freischaltungen) bleibt erhalten; er liegt nicht im Spielordner, sondern unter
+  `~/.local/share/godot/app_userdata/Wyrdwood Survivors/`.
+- **`git pull` meldet einen Konflikt** (z. B. weil du Dateien geändert hast): `git fetch && git reset --hard origin/main && ./install.sh`, das verwirft
+  lokale Änderungen im Spielordner (nicht den Spielstand).
+- **Modelle fehlen oder sehen falsch aus:** einmal den Import-Cache löschen und neu importieren: `rm -rf .godot && ./install.sh`.
+
 ## Steuerung
 | | |
 |---|---|
