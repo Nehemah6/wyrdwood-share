@@ -309,6 +309,16 @@ func _build_options() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(fs)
 	v.add_child(row)
+	var skin_names := {"druid": "Druidin", "classic": "Elfe mit Schwert"}
+	var sk := btn("Figur:  " + str(skin_names.get(Meta.skin, Meta.skin)), Vector2(520, 68), 30)
+	sk.pressed.connect(func():
+		Meta.skin = "classic" if Meta.skin == "druid" else "druid"
+		Meta.save()
+		_show("options"))
+	var row_s := HBoxContainer.new()
+	row_s.alignment = BoxContainer.ALIGNMENT_CENTER
+	row_s.add_child(sk)
+	v.add_child(row_s)
 	var tips := lab("Steuerung:  WASD / Pfeile   oder   Maus (klicken oder halten = dorthin laufen)\nMausrad = Zoom  ·  Esc = Pause  ·  Level-Up: Karte anklicken oder Taste 1–3\nController:  Stick = laufen  ·  A = wählen  ·  B = zurück  ·  LB/RB = Zoom  ·  Start = Pause", 24, Color(0.8, 0.9, 0.9))
 	tips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(tips)

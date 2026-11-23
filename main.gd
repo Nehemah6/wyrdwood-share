@@ -2,6 +2,21 @@ extends Node3D
 ## Wyrdwood Survivors: Vampire-Survivors-artiges Spiel in 3D (Top-Down) mit Dark-Fairytale-Setting.
 
 const M := "res://assetdesk/3dmodels/"
+# Spielfiguren (Skins, Wahl in den Optionen -> Meta.skin, Test: WW_SKIN): Clip-Animationen aus UniMate
+# (idle/walk/run/cast/hit[/hit2]/die, 22 Knochen, schauen nach +Z). upper = Oberkörper-Knochen (Wirbel 2-3, Hals, Kopf,
+# beide Arme) für hit über dem Laufzyklus; cast nimmt upper ohne spine (nur Arme/Hals/Kopf), sonst kippt der Rumpf
+# bei jedem Schuss weg (Zauber-Clip der alten Elfe beugt Wirbel 2 bis 45°). feet = Fußknochen: die Figur wird so
+# nachgeführt, dass die Mitte zwischen den Füßen auf dem Drehpunkt bleibt (Idle/Cast stehen 10-15 cm neben der Hüfte,
+# sonst wandert sie beim Umdrehen zum Ziel auf einem Kreis). Die Rigs sind unterschiedlich nummeriert.
+# Fehlt die Datei, kommt die alte T-Pose-Elfe mit der prozeduralen Animation (_animate_player).
+const SKINS := {
+	"druid": {"glb": "res://rigged/elf_druid_anim.glb", "upper": ["bone_2", "bone_3", "bone_4", "bone_5",
+		"bone_6", "bone_7", "bone_8", "bone_9", "bone_25", "bone_26", "bone_27", "bone_28"], "spine": ["bone_2", "bone_3"], "feet": ["bone_46", "bone_50"],
+		"walk_speed": 1.6, "run_speed": 2.7},
+	"classic": {"glb": "res://rigged/elf_old_anim.glb", "upper": ["bone_2", "bone_3", "bone_4", "bone_5",
+		"bone_7", "bone_8", "bone_9", "bone_10", "bone_26", "bone_27", "bone_28", "bone_29"], "spine": ["bone_2", "bone_3"], "feet": ["bone_47", "bone_51"],
+		"walk_speed": 0.8, "run_speed": 2.2},   # run = Jogging-Clip (aufrechter als ihr Renn-Clip)
+}
 const PLAYER_MODEL := M + "characters/elfe_mit_langen.glb"
 
 const ENEMIES := Defs.ENEMIES   # Archetypen/Statistiken: defs.gd
@@ -88,7 +103,14 @@ var yaw_vel := 0.0          # Drehgeschwindigkeit der Figur (für das Einlehnen 
 var stance_k := 0.0
 var hit_t := 0.0
 var moving := false
+var cur_speed := 0.0        # tatsächliches Lauftempo (m/s) für die Clip-Wiedergabe
+var anim_tree: AnimationTree    # gesetzt = Clip-Animation (PLAYER_ANIMATED), sonst prozedural
+var anim_player: AnimationPlayer
 const ARM_DOWN := 1.15
+# Clip-Tempo am Boden (m/s bei Wiedergabe 1.0, aus der Wurzelbewegung der UniMate-Clips, pro Skin in SKINS):
+# run wird auf das Spieltempo beschleunigt, damit die Füße nicht rutschen.
+var clip_walk_speed := 1.6
+var clip_run_speed := 2.7
 
 var enemies: Array = []     # Dictionary: node, type, hp, spd, dmg, flash
 var pickups: Array = []     # Dictionary: node, kind
@@ -293,7 +315,7 @@ func _ready() -> void:
 					get_tree().create_timer(0.2).timeout.connect(func(): print("CLICKTEST weapons=", weapons, " passives=", passives, " layer_visible=", choice_layer.visible)))
 			get_tree().create_timer(1.2).timeout.connect(_level_up)
 		get_tree().create_timer(float(OS.get_environment("WW_T")) if OS.has_environment("WW_T") else 6.0).timeout.connect(func():
-			print("FPS ", Engine.get_frames_per_second(), " enemies=", enemies.size(), " player=", player.position.snapped(Vector3(0.1, 0.1, 0.1)), " target=", has_target, move_target.snapped(Vector3(0.1, 0.1, 0.1)), " cam_rot=", cam.rotation_degrees.snapped(Vector3(0.01, 0.01, 0.01)), " mitte=", (_ground_at(get_viewport().get_visible_rect().size / 2.0) as Vector3).snapped(Vector3(0.1, 0.1, 0.1)))
+			print("FPS ", Engine.get_frames_per_second(), " lv=", level, " xp=", xp, "/", xp_next,  " enemies=", enemies.size(), " player=", player.position.snapped(Vector3(0.1, 0.1, 0.1)), " target=", has_target, move_target.snapped(Vector3(0.1, 0.1, 0.1)), " cam_rot=", cam.rotation_degrees.snapped(Vector3(0.01, 0.01, 0.01)), " mitte=", (_ground_at(get_viewport().get_visible_rect().size / 2.0) as Vector3).snapped(Vector3(0.1, 0.1, 0.1)))
 			get_viewport().get_texture().get_image().save_png(OS.get_environment("WW_OUT"))
 			get_tree().quit())
 
@@ -368,7 +390,7 @@ func _scene_or_null(path: String) -> PackedScene:
 
 # Echte Längste-Seite (m) laut Asset Desk; die GLBs selbst sind auf Einheitsgröße (±0,5) normalisiert.
 const MODEL_SIZE := {
-	"characters/elfe_mit_langen.glb": 1.75,
+	"characters/elfe_mit_langen.glb": 1.75, "res://rigged/elf_druid_anim.glb": 1.75, "res://rigged/elf_old_anim.glb": 1.75,
 	"items/spirit_gem.glb": 0.25, "items/heart_berry.glb": 0.3, "items/rune_chest.glb": 0.9,
 	"weapons/thorn_dart.glb": 0.6, "weapons/acorn_bomb.glb": 0.4,
 	"nature/gnarled_tree.glb": 5.0, "nature/mossy_boulder.glb": 1.8, "nature/glow_mushrooms.glb": 0.9,
@@ -391,7 +413,7 @@ func _mesh_aabb(n: Node, xf: Transform3D, acc: Array) -> void:
 			_mesh_aabb(c, cx, acc)
 
 func _make_model(rel: String, fb_col: Color, fb_size: float) -> Node3D:
-	var s := _scene_or_null(M + rel)
+	var s := _scene_or_null(rel if rel.begins_with("res://") else M + rel)
 	if s:
 		var inst: Node3D = s.instantiate()
 		if not fit_cache.has(rel):
@@ -523,12 +545,19 @@ func _ground_material() -> StandardMaterial3D:
 func _setup_player() -> void:
 	player = Node3D.new()
 	add_child(player)
-	var mdl := _make_model("characters/elfe_mit_langen.glb", Color(0.8, 0.7, 0.5), 1.7)
+	var skin_id: String = OS.get_environment("WW_SKIN") if OS.has_environment("WW_SKIN") else Meta.skin
+	var skin: Dictionary = SKINS.get(skin_id, SKINS["druid"])
+	var animated := ResourceLoader.exists(skin["glb"])
+	var mdl := _make_model(skin["glb"] if animated else "characters/elfe_mit_langen.glb", Color(0.8, 0.7, 0.5), 1.7)
 	mdl.name = "Model"
 	player.add_child(mdl)
-	var sks := mdl.find_children("*", "Skeleton3D", true, false)
-	if not sks.is_empty():
-		skel = sks[0]
+	var aps := mdl.find_children("*", "AnimationPlayer", true, false)
+	if animated and not aps.is_empty():
+		_setup_anim_tree(aps[0], skin)
+	else:
+		var sks := mdl.find_children("*", "Skeleton3D", true, false)
+		if not sks.is_empty():
+			skel = sks[0]
 	var light := OmniLight3D.new()  # Laterne der Druidin
 	lantern = light
 	light.light_color = lv.get("lantern", Color(1.0, 0.8, 0.5))
@@ -538,6 +567,111 @@ func _setup_player() -> void:
 	player.add_child(light)
 	orb_root = Node3D.new()
 	player.add_child(orb_root)
+
+# ---------- Clip-Animation (Skins aus SKINS) ----------
+# Baum: Laufzyklus (BlendSpace1D idle/walk/run nach Tempo, Zeitskala gegen Fußrutschen) -> OneShot hit -> OneShot cast.
+# Die OneShots sind auf den Oberkörper gefiltert, die Beine laufen beim Zaubern weiter. Tod: Baum aus, "die" ganz.
+func _setup_anim_tree(ap: AnimationPlayer, skin: Dictionary) -> void:
+	anim_player = ap
+	clip_walk_speed = skin["walk_speed"]
+	clip_run_speed = skin["run_speed"]
+	var sks := ap.get_parent().find_children("*", "Skeleton3D", true, false)
+	if not sks.is_empty():
+		clip_skel = sks[0]
+		clip_feet = [clip_skel.find_bone(skin["feet"][0]), clip_skel.find_bone(skin["feet"][1])]
+	for a in ["idle", "walk", "run"]:
+		if ap.has_animation(a):
+			ap.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	var bt := AnimationNodeBlendTree.new()
+	var loco := AnimationNodeBlendSpace1D.new()
+	loco.min_space = 0.0
+	loco.max_space = clip_run_speed
+	for pair in [["idle", 0.0], ["walk", clip_walk_speed], ["run", clip_run_speed]]:
+		var an := AnimationNodeAnimation.new()
+		an.animation = pair[0]
+		loco.add_blend_point(an, pair[1])
+	bt.add_node("loco", loco)
+	bt.add_node("loco_speed", AnimationNodeTimeScale.new())
+	bt.connect_node("loco_speed", 0, "loco")
+	var prev := "loco_speed"
+	for a in ["hit", "cast"]:
+		var clip := AnimationNodeAnimation.new()
+		clip.animation = a
+		var shot := AnimationNodeOneShot.new()
+		shot.fadein_time = 0.12
+		shot.fadeout_time = 0.25
+		shot.filter_enabled = true
+		var anim := ap.get_animation(a)
+		for i in anim.get_track_count():
+			var tp := anim.track_get_path(i)
+			var bn := tp.get_concatenated_subnames()
+			if skin["upper"].has(bn) and not (a == "cast" and skin["spine"].has(bn)):
+				shot.set_filter_path(tp, true)
+		bt.add_node(a + "_clip", clip)
+		bt.add_node(a + "_speed", AnimationNodeTimeScale.new())
+		bt.add_node(a, shot)
+		bt.connect_node(a + "_speed", 0, a + "_clip")
+		bt.connect_node(a, 0, prev)
+		bt.connect_node(a, 1, a + "_speed")
+		prev = a
+	bt.connect_node("output", 0, prev)
+	anim_tree = AnimationTree.new()
+	ap.get_parent().add_child(anim_tree)
+	anim_tree.anim_player = anim_tree.get_path_to(ap)
+	anim_tree.tree_root = bt
+	anim_tree.set("parameters/hit_speed/scale", 2.0)
+	anim_tree.active = true
+
+var loco_pos := 0.0
+var clip_dead := false
+var clip_skel: Skeleton3D
+var clip_feet := [-1, -1]
+
+func _center_on_feet(delta: float) -> void:
+	# Fußmitte (waagerecht) auf den Drehpunkt des Modells schieben; im Stand zügig, beim Laufen stark geglättet
+	if clip_skel == null or clip_feet[0] < 0 or clip_feet[1] < 0:
+		return
+	var pivot := player.get_node("Model") as Node3D
+	var inst := pivot.get_child(0) as Node3D
+	var mid := (clip_skel.global_transform * clip_skel.get_bone_global_pose(clip_feet[0]).origin
+		+ clip_skel.global_transform * clip_skel.get_bone_global_pose(clip_feet[1]).origin) * 0.5
+	var f := pivot.to_local(mid)
+	var k := 1.0 - exp(-(2.0 if moving else 8.0) * delta)
+	inst.position.x -= f.x * k
+	inst.position.z -= f.z * k
+	if OS.has_environment("WW_FEETLOG") and Engine.get_process_frames() % 15 == 0:   # Test: Fußmitte in Welt + Blickwinkel
+		print("FEET ", snappedf(mid.x - player.position.x, 0.001), " ", snappedf(mid.z - player.position.z, 0.001), " yaw ", snappedf(rad_to_deg(face_yaw), 1))
+
+func _animate_clips(delta: float) -> void:
+	walk_blend = move_toward(walk_blend, 1.0 if moving else 0.0, delta * 7.0)
+	anim_t += delta
+	cast_t = maxf(0.0, cast_t - delta)
+	hit_t = maxf(0.0, hit_t - delta)
+	if death_t >= 0.0:
+		if not clip_dead:
+			clip_dead = true
+			anim_tree.active = false
+			anim_player.play("die", 0.2)
+		death_t += delta
+		_death_fx()
+		return
+	# Tempo -> Mischung idle/walk/run; über dem Clip-Tempo von run schneller abspielen statt rutschen
+	loco_pos = lerpf(loco_pos, minf(cur_speed, clip_run_speed), 1.0 - exp(-10.0 * delta))
+	anim_tree.set("parameters/loco/blend_position", loco_pos)
+	anim_tree.set("parameters/loco_speed/scale", clampf(cur_speed / clip_run_speed, 1.0, 3.2))
+	_center_on_feet(delta)
+	if hit_t > 0.3 and not anim_tree.get("parameters/hit/active"):
+		# zweite Treffer-Variante (hit2), falls der Skin eine hat: zufällig abwechseln
+		var clip: AnimationNodeAnimation = (anim_tree.tree_root as AnimationNodeBlendTree).get_node("hit_clip")
+		clip.animation = "hit2" if anim_player.has_animation("hit2") and rng.randf() < 0.5 else "hit"
+		anim_tree.set("parameters/hit/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+
+func _clip_cast(dur: float) -> void:
+	if anim_tree == null or clip_dead or anim_tree.get("parameters/cast/active"):
+		return      # läuft schon (Dauerfeuer): nicht neu starten, sonst zuckt der Oberkörper
+	var len := anim_player.get_animation("cast").length
+	anim_tree.set("parameters/cast_speed/scale", clampf(len / maxf(dur * 1.6, 0.7), 0.8, 2.8))
+	anim_tree.set("parameters/cast/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 
 func _sb(bg: Color, border: Color = Color(0, 0, 0, 0), radius: int = 6, bw: int = 0) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -617,7 +751,9 @@ func _setup_ui() -> void:
 	xp_bar = _bar(Color(0.25, 0.9, 0.95), Vector2(1920, 12), Vector2(0, 1068))
 	xp_bar.add_theme_stylebox_override("background", _sb(Color(0, 0, 0, 0.6), Color(0, 0, 0, 0), 0))
 	xp_bar.add_theme_stylebox_override("fill", _sb(Color(0.25, 0.9, 0.95), Color(0, 0, 0, 0), 0))
-	xp_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	# Anker UND Abstände setzen: nur set_anchors_preset übernahm die Breite (1920) als rechten Überstand, solange die UI
+	# noch Größe 0 hatte -> Balken breiter als der Bildschirm, ab ~70 % sah er voll aus
+	xp_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	xp_bar.offset_top = -12
 	ui.add_child(xp_bar)
 	slot_box = Control.new()
@@ -850,7 +986,8 @@ func _pick(i: int) -> void:
 		(choice_actions[i] as Callable).call()
 		choice_layer.visible = false
 		get_tree().paused = false
-		play_cast("cheer", 0.9))
+		play_cast("cheer", 0.9)
+		_try_level_up.call_deferred())   # Überschuss reicht für die nächste Stufe: gleich die nächste Wahl
 
 func _process(delta: float) -> void:
 	if get_tree().paused:
@@ -939,6 +1076,7 @@ func _move_player(delta: float) -> void:
 				v = to / dist * clampf(dist / 1.2, 0.35, 1.0)
 	_update_move_marker()
 	moving = v.length() > 0.1
+	cur_speed = speed * minf(v.length(), 1.0) if moving else 0.0
 	_animate_player(delta)
 	var mdl := player.get_node("Model") as Node3D
 	if moving:
@@ -958,7 +1096,8 @@ func _move_player(delta: float) -> void:
 			step_acc = 0.0
 			vfx.burst("dust", player.position + Vector3(0, 0.05, 0) - v.normalized() * 0.25)
 		look_dir = v.normalized()
-		mdl.position.y = absf(sin(anim_t * 2.0)) * 0.05 * walk_blend
+		if anim_tree == null:   # Clip-Skins wippen selbst
+			mdl.position.y = absf(sin(anim_t * 2.0)) * 0.05 * walk_blend
 	# Blick: beim Feuern kurz in Zielrichtung, sonst in Laufrichtung
 	aim_t = maxf(0.0, aim_t - delta)
 	var face := Vector3.ZERO
@@ -1018,6 +1157,7 @@ func play_cast(kind: String, dur: float) -> void:
 	cast_kind = kind
 	cast_dur = dur
 	cast_t = dur
+	_clip_cast(dur)
 	if vfx == null:
 		return
 	var hand := player.position + Vector3(0, 1.25, 0) + (aim_dir * 0.55 if kind != "slam" and kind != "cheer" else Vector3.ZERO)
@@ -1050,6 +1190,9 @@ var ANIM := {"body": 0.0, "hip_off": 0.0, "leg_in": -0.1, "lean": 0.04, "lean2":
 var anim_cfg_done := false
 
 func _animate_player(delta: float) -> void:
+	if anim_tree != null:
+		_animate_clips(delta)
+		return
 	if skel == null:
 		return
 	if not anim_cfg_done:
@@ -1825,10 +1968,7 @@ func _update_pickups(delta: float) -> void:
 			match p["kind"]:
 				"gem":
 					xp += int(ceil(p["value"] * xp_mult))
-					if xp >= xp_next:
-						xp -= xp_next
-						level += 1
-						xp_next = Defs.xp_need(level)
+					if _try_level_up():
 						n.queue_free()
 						pickups.remove_at(i)
 						_level_up()
@@ -1842,7 +1982,7 @@ func _update_pickups(delta: float) -> void:
 					vfx.ring(player.position, 0.5, 8.0, 0.8, Color(1.0, 0.85, 0.4, 1.0))
 					vfx.pillar(player.position, Color(1.0, 0.85, 0.4), 1.8)
 					_show_banner("Runentruhe geöffnet!")
-					_level_up()
+					_level_up(true)
 			n.queue_free()
 			pickups.remove_at(i)
 			return
@@ -2132,7 +2272,20 @@ func _levelup_fx(head: Label) -> void:
 	tw.tween_property(head, "scale", Vector2(1.12, 1.12), 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(head, "scale", Vector2.ONE, 0.15)
 
-func _level_up() -> void:
+# Stufe aufsteigen, wenn die Erfahrung reicht. Ein großer Edelstein kann für mehrere Stufen reichen: der Rest bleibt in xp,
+# nach jeder Kartenwahl wird erneut geprüft (sonst klebte der Balken voll bis zum nächsten Edelstein).
+func _try_level_up() -> bool:
+	if dead or xp < xp_next:
+		return false
+	xp -= xp_next
+	level += 1
+	xp_next = Defs.xp_need(level)
+	_level_up()
+	if bot:      # Bot wählt sofort, keine Pause dazwischen
+		_try_level_up()
+	return true
+
+func _level_up(chest: bool = false) -> void:
 	if bot:
 		if not OS.has_environment("WW_NOCARDS"):
 			_apply_card(_bot_pick(_make_cards()))
@@ -2149,7 +2302,7 @@ func _level_up() -> void:
 	cards = _make_cards()
 	for c in choice_box.get_children():
 		c.queue_free()
-	var head := _label("Stufe %d!" % level, 40, Color(1.0, 0.86, 0.42))
+	var head := _label("Runentruhe!" if chest else "Stufe %d!" % level, 40, Color(1.0, 0.86, 0.42))
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.pivot_offset = Vector2(385, 26)
 	choice_box.add_child(head)

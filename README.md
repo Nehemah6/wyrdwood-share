@@ -1,6 +1,6 @@
 # Wyrdwood Survivors – Teststand
 
-Ein 3D-Survivors-Spiel (Top-Down, Dark-Fairytale-Wald): Du bist eine Elfen-Druidin, deine Waffen schießen von allein,
+Ein 3D-Survivors-Spiel (Top-Down, Dark-Fairytale-Wald): Du bist eine Elfen-Druidin (Figur wählbar unter *Optionen*), deine Waffen schießen von allein,
 du sammelst Kristalle, steigst auf und wählst Karten. Überlebe 15 Minuten; bei 10:00 erscheint der Boss.
 
 ## Schnellstart (CachyOS / Arch Linux)
@@ -20,18 +20,17 @@ Läuft mit Vulkan (auf AMD über Mesa/RADV); bei der Radeon RX 9070 XT sollte ei
 im Vollbild, **F11** wechselt ins Fenster. In 4K nutzt es automatisch FSR2 (67 % Renderauflösung). Bei Rucklern hilft ein kleineres Fenster.
 
 ## Aktualisieren (neuer Teststand)
-Im Spielordner:
-```bash
-git pull && ./install.sh
-```
-`git pull` holt den neuen Stand, `install.sh` importiert geänderte Modelle neu (geht schnell, wenn sich wenig geändert hat) und prüft
-nebenbei die Godot-Version. Danach wie gewohnt `./start.sh`.
+**Doppelklick auf `update.sh`** im Spielordner (im Dateimanager ggf. „Ausführen“ wählen). Es öffnet sich ein Fenster, das den neuen
+Stand von GitHub holt, geänderte Modelle neu importiert und danach fragt, ob das Spiel starten soll.
+
+Im Terminal geht dasselbe mit `./update.sh` oder von Hand mit `git pull && ./install.sh`.
+(Gibt es `update.sh` bei dir noch nicht: einmal im Spielordner `git pull` ausführen, danach ist es da.)
 
 - **Ohne Git (ZIP):** neues ZIP laden, entpacken (am besten in einen frischen Ordner) und dort `chmod +x install.sh start.sh && ./install.sh`.
 - **Spielstand** (Wurzelsplitter, Verstärkungen, Freischaltungen) bleibt erhalten; er liegt nicht im Spielordner, sondern unter
   `~/.local/share/godot/app_userdata/Wyrdwood Survivors/`.
-- **`git pull` meldet einen Konflikt** (z. B. weil du Dateien geändert hast): `git fetch && git reset --hard origin/main && ./install.sh`, das verwirft
-  lokale Änderungen im Spielordner (nicht den Spielstand).
+- **Lokale Änderungen im Spielordner** (z. B. eine Datei bearbeitet): `update.sh` verwirft sie und nimmt den Stand von GitHub; von Hand:
+  `git fetch && git reset --hard origin/main && ./install.sh`. Der Spielstand bleibt dabei erhalten.
 - **Modelle fehlen oder sehen falsch aus:** einmal den Import-Cache löschen und neu importieren: `rm -rf .godot && ./install.sh`.
 
 ## Steuerung

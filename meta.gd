@@ -10,6 +10,7 @@ var unlocked := ["wyrdwood"]
 var runs := 0
 var total_kills := 0
 var level_id := "wyrdwood"
+var skin := "druid"           # Spielfigur: Schlüssel in Main.SKINS (Optionen)
 var in_menu := true           # true = Hauptmenü zeigen, false = Lauf starten
 
 func _ready() -> void:
@@ -30,6 +31,7 @@ func load_save() -> void:
 	unlocked = d.get("unlocked", ["wyrdwood"])
 	runs = int(d.get("runs", 0))
 	total_kills = int(d.get("total_kills", 0))
+	skin = str(d.get("skin", "druid"))
 
 func save() -> void:
 	if (OS.has_environment("WW_SHOT") or OS.has_environment("WW_BOT")) and not OS.has_environment("WW_SAVE"):
@@ -37,7 +39,7 @@ func save() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"shards": shards, "upgrades": upgrades, "best": best, "unlocked": unlocked, "runs": runs, "total_kills": total_kills}, "\t"))
+	f.store_string(JSON.stringify({"shards": shards, "upgrades": upgrades, "best": best, "unlocked": unlocked, "runs": runs, "total_kills": total_kills, "skin": skin}, "\t"))
 
 func lvl(id: String) -> int:
 	return int(upgrades.get(id, 0))
