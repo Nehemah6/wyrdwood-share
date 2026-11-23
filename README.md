@@ -1,7 +1,14 @@
 # Wyrdwood Survivors – Teststand
 
-Ein 3D-Survivors-Spiel (Top-Down, Dark-Fairytale-Wald): Du bist eine Elfen-Druidin (Figur wählbar unter *Optionen*), deine Waffen schießen von allein,
-du sammelst Kristalle, steigst auf und wählst Karten. Überlebe 15 Minuten; bei 10:00 erscheint der Boss.
+Ein 3D-Survivors-Spiel im Dark-Fairytale-Look (Top-Down): Du bist eine Elfen-Druidin, deine Waffen schießen von allein. Du weichst aus, sammelst
+Spirit-Kristalle, steigst auf und baust dir aus **12 Waffen** und **12 Ausrüstungsstücken** (je 6 Plätze) einen Build. Die Masse an Gegnern
+ist die Herausforderung; am Ende wartet ein Boss.
+
+| Level | Freischaltung | Besonderheit |
+|---|---|---|
+| **Wyrdwood** | von Anfang an | Dunkler Märchenwald, Boss: *Der verderbte Hirsch* (15:00), Ziel: 20 Minuten überleben |
+| **Aschemoor** | 300 Wurzelsplitter | Ausgebrannter Sumpf, mehr Wölfe, früher Zauberer, härter |
+| **Totenacker** | 500 Wurzelsplitter | Friedhof unter Blutmond, Ghule und Knochenhexen, Boss: *Der Grabwächter* |
 
 ## Schnellstart (CachyOS / Arch Linux)
 ```bash
@@ -16,8 +23,14 @@ Ohne Git: auf GitHub „Code → Download ZIP“, entpacken, im Ordner `chmod +x
 - **`start.sh`** startet das Spiel. Zusätze gehen an Godot, z. B. Fenstermodus: `./start.sh --windowed`.
 - Andere Systeme: Godot 4.7 (Standard-Version, nicht .NET) von <https://godotengine.org/download> laden, `project.godot` importieren, F5.
 
-Läuft mit Vulkan (auf AMD über Mesa/RADV); bei der Radeon RX 9070 XT sollte ein aktuelles System ohne weiteres reichen. Das Spiel startet
-im Vollbild, **F11** wechselt ins Fenster. In 4K nutzt es automatisch FSR2 (67 % Renderauflösung). Bei Rucklern hilft ein kleineres Fenster.
+Läuft mit Vulkan (AMD über Mesa/RADV, NVIDIA mit dem proprietären Treiber). Das Spiel startet im Vollbild, **F11** wechselt ins Fenster.
+
+**Grafik** (*Optionen → Grafik*, wird gespeichert):
+- **Supersampling 1,4×** (Standard): ruhigstes Bild ohne Nachziehen, braucht eine starke GPU.
+- **Nativ:** volle Auflösung mit MSAA und FXAA, schärfer und leichter.
+- **FSR 2 Quality:** spart die meiste Leistung, kann bei Bewegung etwas nachziehen.
+
+Bei Rucklern auf „Nativ" oder „FSR 2" wechseln oder ein kleineres Fenster nutzen.
 
 ## Aktualisieren (neuer Teststand)
 **Doppelklick auf `update.sh`** im Spielordner (im Dateimanager ggf. „Ausführen“ wählen). Es öffnet sich ein Fenster, das den neuen
@@ -36,16 +49,18 @@ Im Terminal geht dasselbe mit `./update.sh` oder von Hand mit `git pull && ./ins
 ## Steuerung
 | | |
 |---|---|
-| WASD / Pfeiltasten | Bewegen |
+| WASD / Pfeiltasten / Controller-Stick | Bewegen |
 | Maus (links oder rechts) | Auf den Boden klicken = dorthin laufen; Taste halten = dem Cursor folgen (WASD hat Vorrang) |
 | Mausrad | Zoom (rein/raus) |
-| Level-Up | Karte anklicken oder Taste 1–3 |
+| Level-Up | Karte anklicken, Taste 1–3 oder Controller (A) – Waffen stehen immer links |
 | Esc | Pause (auch: Lauf beenden, Vollbild) |
 | F11 | Vollbild an/aus |
+| Controller | Stick = laufen · A = wählen · B = zurück · LB/RB = Zoom · Start = Pause |
 
-Angreifen geht automatisch. Nach jedem Lauf gibt es **Wurzelsplitter**; im Hauptmenü unter *Verstärkungen* kaufst du damit
-dauerhafte Boni, ab 300 Splittern schaltest du das zweite Level (*Aschemoor*) frei. Der Spielstand liegt lokal bei dir.
+Angreifen geht automatisch. Herzbeeren, die Gegner fallen lassen, heilen dich (bei wenig Leben fallen sie öfter). Nach jedem Lauf gibt es
+**Wurzelsplitter**; im Hauptmenü unter *Verstärkungen* kaufst du damit dauerhafte Boni und schaltest neue Level frei.
+Unter *Optionen* wählst du außerdem die Figur (Druidin oder Elfe mit Schwert). Der Spielstand liegt lokal bei dir.
 
 ## Rückmeldung (gern kurz)
-Was war zu leicht/zu schwer? Welche Waffe/Karte hat Spaß gemacht, welche nicht? Gab es Ruckler, Abstürze, Fehler?
+Was war zu leicht/zu schwer (Anfang, Mitte, Boss)? Welche Waffe/Karte hat Spaß gemacht, welche nicht? Gab es Ruckler, Abstürze, Fehler?
 Notiere bitte ungefähr die Zeit im Lauf und was gerade los war.
