@@ -279,7 +279,8 @@ func ring(pos: Vector3, r0: float, r1: float, dur: float, col: Color) -> void:
 			rings.append({"node": mi, "t": 0.0, "dur": dur, "r0": r0, "r1": r1, "col": col})
 			return
 
-func flash(pos: Vector3, col: Color, energy: float, rng: float, dur: float) -> void:
+func flash(pos: Vector3, col: Color, energy: float, rng: float, dur: float, strength: float = 0.45) -> void:
+	energy *= strength   # Spieler-Blitze dezent halten, damit die Laterne sichtbar bleibt (Treffer-Rot: strength 1.0)
 	for l in lights:
 		if l["t"] >= l["dur"]:
 			var n: OmniLight3D = l["node"]

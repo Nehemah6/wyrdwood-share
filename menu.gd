@@ -319,6 +319,17 @@ func _build_options() -> void:
 	row_s.alignment = BoxContainer.ALIGNMENT_CENTER
 	row_s.add_child(sk)
 	v.add_child(row_s)
+	var order := ["native", "ssaa", "fsr2"]
+	var up := btn("Grafik:  " + str(Meta.UPSCALE_NAMES[Meta.upscale]), Vector2(760, 68), 28)
+	up.pressed.connect(func():
+		Meta.upscale = order[(order.find(Meta.upscale) + 1) % order.size()]
+		Meta.save()
+		Meta.apply_quality(get_viewport())
+		_show("options"))
+	var row_u := HBoxContainer.new()
+	row_u.alignment = BoxContainer.ALIGNMENT_CENTER
+	row_u.add_child(up)
+	v.add_child(row_u)
 	var tips := lab("Steuerung:  WASD / Pfeile   oder   Maus (klicken oder halten = dorthin laufen)\nMausrad = Zoom  ·  Esc = Pause  ·  Level-Up: Karte anklicken oder Taste 1–3\nController:  Stick = laufen  ·  A = wählen  ·  B = zurück  ·  LB/RB = Zoom  ·  Start = Pause", 24, Color(0.8, 0.9, 0.9))
 	tips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(tips)

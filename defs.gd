@@ -25,7 +25,7 @@ const WEAPONS := {
 	"fireflies": {"name": "Glühkäferschwarm", "max": 8, "desc": "Leuchtkäfer suchen sich selbst ihr Ziel und lenken nach.",
 		"labels": {"dmg": ["Schaden", "%d"], "cd": ["Pause", "%.2fs"], "count": ["Käfer", "%d"]}},
 	"bramble": {"name": "Dornenpfad", "max": 8, "desc": "Wo du läufst, wachsen Dornen. Sie verlangsamen und verletzen.",
-		"labels": {"dps": ["Schaden/s", "%.0f"], "dur": ["Dauer", "%.1fs"], "radius": ["Radius", "%.1fm"]}},
+		"labels": {"dps": ["Schaden/s", "%.1f"], "dur": ["Dauer", "%.1fs"], "radius": ["Radius", "%.1fm"]}},
 	"beam": {"name": "Sternenstrahl", "max": 8, "desc": "Ein Lichtstrahl trifft alles in einer Linie.",
 		"labels": {"dmg": ["Schaden", "%d"], "cd": ["Pause", "%.2fs"], "len": ["Länge", "%.0fm"], "width": ["Breite", "%.1fm"], "count": ["Strahlen", "%d"]}},
 	"frost": {"name": "Raureif-Nova", "max": 8, "desc": "Eisiger Ring: stößt Gegner zurück und friert sie kurz ein.",
@@ -71,7 +71,7 @@ static func passive_total(id: String, l: int) -> String:
 const ENEMIES := {
 	"imp":    {"m": "creatures/thorn_imp_v2.glb",      "hp": 8.0,   "spd": 3.4, "dmg": 4.0,  "xp": 1,   "col": Color(0.6, 0.35, 0.1),  "sz": 0.5, "role": "rusher"},
 	"toad":   {"m": "creatures/bog_toad_v3.glb",       "hp": 22.0,  "spd": 1.9, "dmg": 7.0,  "xp": 2,   "col": Color(0.3, 0.5, 0.2),   "sz": 0.5, "role": "rusher", "cap": 60},
-	"wolf":   {"m": "creatures/moss_wolf_v2.glb",      "hp": 14.0,  "spd": 5.2, "dmg": 6.0,  "xp": 2,   "col": Color(0.2, 0.5, 0.5),   "sz": 0.5, "role": "rusher"},
+	"wolf":   {"m": "creatures/moss_wolf_v2.glb",      "hp": 14.0,  "spd": 4.4, "dmg": 6.0,  "xp": 2,   "col": Color(0.2, 0.5, 0.5),   "sz": 0.5, "role": "rusher"},
 	"tank":   {"m": "creatures/shell_tortoise.glb", "hp": 120.0, "spd": 1.3, "dmg": 12.0, "xp": 8,   "col": Color(0.45, 0.4, 0.3),  "sz": 0.9, "role": "tank", "armor": 0.5, "cap": 20},
 	"caster": {"m": "creatures/thorn_shaman.glb",   "hp": 22.0,  "spd": 2.2, "dmg": 4.0,  "xp": 5,   "col": Color(0.3, 0.8, 0.8),   "sz": 0.5, "role": "caster", "range": 9.0, "shot_dmg": 7.0, "shot_cd": 3.0, "cap": 18},
 	"healer": {"m": "creatures/spore_healer_v2.glb",   "hp": 26.0,  "spd": 1.8, "dmg": 3.0,  "xp": 6,   "col": Color(1.0, 0.55, 0.2),  "sz": 0.4, "role": "healer", "heal": 7.0, "heal_range": 7.0, "cap": 6},
@@ -80,7 +80,7 @@ const ENEMIES := {
 	# --- Totenacker (Horror) · "alt" = Platzhalter-Typ, bis das eigene Modell aus dem Asset Desk da ist
 	"ghoul":    {"m": "creatures/grave_ghoul.glb",     "hp": 10.0,  "spd": 3.2, "dmg": 5.0,  "xp": 1,   "col": Color(0.45, 0.5, 0.42), "sz": 0.5, "role": "rusher", "alt": "imp"},
 	"skeleton": {"m": "creatures/bone_soldier.glb",    "hp": 18.0,  "spd": 2.4, "dmg": 7.0,  "xp": 2,   "col": Color(0.85, 0.82, 0.7), "sz": 0.5, "role": "rusher", "alt": "caster", "cap": 70},
-	"hound":    {"m": "creatures/corpse_hound.glb",    "hp": 12.0,  "spd": 5.8, "dmg": 6.0,  "xp": 2,   "col": Color(0.5, 0.2, 0.2),   "sz": 0.5, "role": "rusher", "alt": "wolf"},
+	"hound":    {"m": "creatures/corpse_hound.glb",    "hp": 12.0,  "spd": 4.5, "dmg": 6.0,  "xp": 2,   "col": Color(0.5, 0.2, 0.2),   "sz": 0.5, "role": "rusher", "alt": "wolf"},
 	"flesh":    {"m": "creatures/stitched_brute.glb",  "hp": 150.0, "spd": 1.2, "dmg": 14.0, "xp": 9,   "col": Color(0.6, 0.4, 0.4),   "sz": 0.9, "role": "tank", "armor": 0.45, "alt": "tank", "cap": 20},
 	"witch":    {"m": "creatures/bone_witch.glb",      "hp": 24.0,  "spd": 2.2, "dmg": 4.0,  "xp": 5,   "col": Color(0.6, 0.3, 0.8),   "sz": 0.5, "role": "caster", "range": 9.5, "shot_dmg": 8.0, "shot_cd": 2.8, "alt": "caster", "cap": 18},
 	"priest":   {"m": "creatures/plague_priest.glb",   "hp": 28.0,  "spd": 1.8, "dmg": 3.0,  "xp": 6,   "col": Color(0.5, 0.7, 0.3),   "sz": 0.45, "role": "healer", "heal": 8.0, "heal_range": 7.0, "alt": "healer", "cap": 6},
@@ -92,10 +92,10 @@ const ENEMIES := {
 # rate = Gegner/s, hp/dmg = Multiplikator auf die Grundwerte
 static func difficulty(minute: float) -> Dictionary:
 	return {
-		"rate": 1.0 + 0.45 * minute + 0.018 * minute * minute,
-		"hp": 1.0 + 0.14 * minute + 0.04 * minute * minute,
-		"dmg": 1.0 + 0.1 * minute + 0.004 * minute * minute,
-		"spd": 1.0 + 0.015 * minute,
+		"rate": 2.4 + 0.2 * minute + 0.015 * minute * minute,    # viel Masse von Anfang an, danach langsamer Anstieg
+		"hp": 1.0 + 0.1 * minute + 0.015 * minute * minute,
+		"dmg": 1.0 + 0.07 * minute + 0.003 * minute * minute,
+		"spd": 1.0 + 0.006 * minute,
 	}
 
 # XP bis zur nächsten Stufe (Stufe 1 -> 2 = 5)
@@ -123,9 +123,9 @@ static func weapon_stats(id: String, l: int) -> Dictionary:
 		"fireflies":
 			return {"dmg": 9.0 + 2.4 * l, "cd": maxf(0.6, 1.6 - 0.12 * l), "count": 3 + l / 2, "speed": 9.0 + 0.4 * l}
 		"bramble":
-			return {"dps": 7.0 + 2.4 * l, "dur": 2.5 + 0.25 * l, "radius": 0.9 + 0.07 * l, "every": maxf(0.9, 1.6 - 0.08 * l)}
+			return {"dps": 3.5 + 1.2 * l, "dur": 2.5 + 0.25 * l, "radius": 0.9 + 0.07 * l, "every": maxf(0.9, 1.6 - 0.08 * l)}
 		"beam":
-			return {"dmg": 14.0 + 3.0 * l, "cd": maxf(1.4, 3.2 - 0.22 * l), "len": 9.0 + 0.6 * l, "width": 0.45 + 0.05 * l, "count": 1 + l / 6}
+			return {"dmg": 14.0 + 3.0 * l, "cd": maxf(1.4, 3.2 - 0.22 * l), "len": (9.0 + 0.6 * l) * 1.1, "width": 0.45 + 0.05 * l, "count": 1 + l / 6}
 		"frost":
 			return {"dmg": 8.0 + 2.0 * l, "cd": maxf(2.2, 5.0 - 0.32 * l), "radius": 3.2 + 0.25 * l, "freeze": 0.8 + 0.12 * l, "knock": 1.6 + 0.1 * l}
 		"bark":

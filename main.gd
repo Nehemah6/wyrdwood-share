@@ -61,6 +61,7 @@ const SIGIL_ALPHA := 0.22   # Deckkraft des Runen-Siegels (fast durchsichtig)
 var view_rigs: Array = []
 var vfx: Vfx
 var lantern: OmniLight3D
+const LANTERN_E := 3.6   # Grundhelligkeit der Laterne
 var step_acc := 0.0
 var stuck_t := 0.0
 var mouse_down := false         # Maus: Taste gehalten = dem Cursor folgen, Klick = zum Punkt laufen
@@ -103,6 +104,7 @@ var yaw_vel := 0.0          # Drehgeschwindigkeit der Figur (für das Einlehnen 
 var stance_k := 0.0
 var hit_t := 0.0
 var moving := false
+var vel := Vector3.ZERO     # geglättete Laufgeschwindigkeit (Beschleunigung/Abbremsen)
 var cur_speed := 0.0        # tatsächliches Lauftempo (m/s) für die Clip-Wiedergabe
 var anim_tree: AnimationTree    # gesetzt = Clip-Animation (PLAYER_ANIMATED), sonst prozedural
 var anim_player: AnimationPlayer
@@ -366,17 +368,7 @@ func _set_zoom_idx(i: int) -> void:
 func _setup_quality() -> void:
 	# UI skaliert über canvas_items-Stretch (Basis 1920x1080). 3D-Last nach echter Pixelzahl:
 	# 4K -> FSR2 mit 67 % Renderauflösung, 1440p -> nativ, 1080p -> nativ.
-	var vp := get_viewport()
-	var h := DisplayServer.window_get_size().y
-	if h >= 2000:
-		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
-		vp.scaling_3d_scale = 0.67
-		vp.msaa_3d = Viewport.MSAA_DISABLED
-	else:
-		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-		vp.scaling_3d_scale = 1.0
-		vp.msaa_3d = Viewport.MSAA_2X
-	vp.use_taa = false
+	Meta.apply_quality(get_viewport())
 
 
 func _scene_or_null(path: String) -> PackedScene:
@@ -469,7 +461,7 @@ func _setup_world() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.1
 	env.glow_enabled = true
-	env.glow_intensity = 0.8
+	env.glow_intensity = 0.6
 	env.glow_bloom = 0.08
 	env.glow_hdr_threshold = 0.9
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
@@ -487,6 +479,7 @@ func _setup_world() -> void:
 	env.volumetric_fog_albedo = lv["env"]["vfog"]
 	env.volumetric_fog_emission = lv["env"].get("vfog_emit", Color(0.01, 0.03, 0.03))
 	env.volumetric_fog_length = 50.0
+	env.volumetric_fog_temporal_reprojection_enabled = false   # Reprojektion zieht bei Bewegung Geisterbilder durch den Nebel
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -561,8 +554,8 @@ func _setup_player() -> void:
 	var light := OmniLight3D.new()  # Laterne der Druidin
 	lantern = light
 	light.light_color = lv.get("lantern", Color(1.0, 0.8, 0.5))
-	light.omni_range = 9.0
-	light.light_energy = 2.0
+	light.omni_range = 12.0
+	light.light_energy = LANTERN_E
 	light.position = Vector3(0, 2.0, 0)
 	player.add_child(light)
 	orb_root = Node3D.new()
@@ -1021,7 +1014,7 @@ func _process(delta: float) -> void:
 		(vr as RigAnim).update(0.0, 0.0)
 	invuln = maxf(0.0, invuln - delta)
 	if lantern != null:
-		lantern.light_energy = 2.0 + 0.22 * sin(time * 13.0) + 0.14 * sin(time * 23.7) + 0.08 * sin(time * 41.0)
+		lantern.light_energy = LANTERN_E + 0.35 * sin(time * 13.0) + 0.2 * sin(time * 23.7) + 0.12 * sin(time * 41.0)
 	if regen > 0.0:
 		hp = minf(max_hp, hp + regen * delta)
 	_move_player(delta)
@@ -1082,7 +1075,8 @@ func _move_player(delta: float) -> void:
 	if moving:
 		v = v.limit_length(1.0)
 		var before := player.position
-		player.position += v * speed * delta
+		vel = vel.move_toward(v * speed, speed * 16.0 * delta)   # ~0,06 s bis Vollgas: direkt, aber ohne Ruck
+		player.position += vel * delta
 		player.position = _clamp_arena(_push_out(player.position, 0.35), 0.0)
 		# Klickziel hinter einem Hindernis: kommt sie kaum voran, gibt sie nach 0,5 s auf
 		if has_target and not mouse_down:
@@ -1098,6 +1092,11 @@ func _move_player(delta: float) -> void:
 		look_dir = v.normalized()
 		if anim_tree == null:   # Clip-Skins wippen selbst
 			mdl.position.y = absf(sin(anim_t * 2.0)) * 0.05 * walk_blend
+	elif vel.length() > 0.05:   # sanftes Ausrollen nach dem Loslassen
+		vel = vel.move_toward(Vector3.ZERO, speed * 12.0 * delta)
+		player.position = _clamp_arena(_push_out(player.position + vel * delta, 0.35), 0.0)
+	else:
+		vel = Vector3.ZERO
 	# Blick: beim Feuern kurz in Zielrichtung, sonst in Laufrichtung
 	aim_t = maxf(0.0, aim_t - delta)
 	var face := Vector3.ZERO
@@ -1139,7 +1138,7 @@ func _update_camera(delta: float) -> void:
 		cam.position = target
 		cam_snap = false
 	else:
-		cam.position = cam.position.lerp(target, 1.0 - exp(-14.0 * delta))
+		cam.position = cam.position.lerp(target, 1.0 - exp(-18.0 * delta))
 	cam.basis = Basis.looking_at(look_dir_fixed, Vector3.UP)
 
 # ---------- Elfen-Animation (prozedural auf dem Rig) ----------
@@ -1380,7 +1379,7 @@ func _death_fx() -> void:
 			return true
 		return false
 	if once.call("hit", 0.0):
-		vfx.flash(player.position + Vector3(0, 1.2, 0), Color(1.0, 0.25, 0.2), 6.0, 8.0, 0.5)
+		vfx.flash(player.position + Vector3(0, 1.2, 0), Color(1.0, 0.25, 0.2), 6.0, 8.0, 0.5, 1.0)
 		vfx.ring(player.position, 0.3, 3.0, 0.5, Color(1.0, 0.3, 0.25, 0.8))
 		vfx.burst("hit", player.position + Vector3(0, 1.2, 0))
 		vfx.add_shake(0.5)
@@ -1398,7 +1397,7 @@ func _death_fx() -> void:
 		vfx.ring(player.position, 0.2, 1.8, 0.4, Color(0.8, 0.75, 0.6, 0.6))
 		vfx.add_shake(0.25)
 	if lantern != null:   # Laterne erlischt langsam
-		lantern.light_energy = 2.0 * (1.0 - _ss(0.5, 2.2, t)) + 0.15
+		lantern.light_energy = LANTERN_E * (1.0 - _ss(0.5, 2.2, t)) + 0.15
 
 # ---------- Gegner ----------
 func _spawn_logic(delta: float) -> void:
@@ -1465,8 +1464,9 @@ func _spawn_enemy(type: String) -> void:
 	sc["dmg"] *= float(lv.get("dmg_mult", 1.0))
 	var scale_hp: float = sc["hp"]
 	next_enemy_id += 1
+	# Masse statt Tempo: Gegner (außer Boss) sind nie schneller als der Spieler
 	enemies.append({"node": n, "type": type, "id": next_enemy_id, "role": d["role"], "hp": d["hp"] * scale_hp,
-		"spd": d["spd"] * rng.randf_range(0.9, 1.1) * sc["spd"], "dmg": d["dmg"] * sc["dmg"], "shot_dmg": d.get("shot_dmg", 0.0) * sc["dmg"], "punch": 0.0, "max": d["hp"] * scale_hp,
+		"spd": minf(d["spd"] * rng.randf_range(0.9, 1.1) * sc["spd"], base_speed * 0.92) if d["role"] != "boss" else d["spd"] * sc["spd"], "dmg": d["dmg"] * sc["dmg"], "shot_dmg": d.get("shot_dmg", 0.0) * sc["dmg"], "punch": 0.0, "max": d["hp"] * scale_hp,
 		"r": d["sz"] * 0.8, "acc": 0.0, "col": d["col"], "armor": d.get("armor", 0.0), "stun": 0.0, "slow": 0.0, "slow_until": 0.0,
 		"shot_t": rng.randf_range(0.5, d.get("shot_cd", 2.0)), "heal_t": rng.randf_range(0.2, 1.0),
 		"rig": (n.get_meta("rig") if n.has_meta("rig") else null)})
@@ -1641,8 +1641,10 @@ func _kill(e: Dictionary) -> void:
 	var p: Vector3 = (e["node"] as Node3D).position
 	var type: String = e["type"]
 	_drop("gem", p, ENEMIES[type]["xp"])
-	if rng.randf() < 0.02:
-		_drop("berry", p, 0)
+	# HP-Beeren: Grundchance 3 %, bei wenig Leben bis ca. 8 %; Elite/Tank lassen sicher eine fallen
+	var berry_p := 0.03 + 0.05 * (1.0 - hp / max_hp)
+	if rng.randf() < berry_p or ENEMIES[type]["role"] in ["elite", "tank"]:
+		_drop("berry", p + Vector3(rng.randf_range(-0.6, 0.6), 0, rng.randf_range(-0.6, 0.6)), 0)
 	if ENEMIES[type]["role"] == "boss":
 		_drop("chest", p, 0)
 	var big: bool = ENEMIES[type]["role"] in ["elite", "boss", "tank"]
@@ -1945,7 +1947,8 @@ func _drop(kind: String, pos: Vector3, value: int) -> void:
 		var tc: Color = GEM_TIERS[tier]["col"]
 		gcol = Color(tc.r, tc.g, tc.b, 0.42)       # dezenter Hof
 		gsize = 0.8 * float(GEM_TIERS[tier]["glow"])
-	vfx.glow_sprite(n, gcol, gsize, Vector3(0, 0.15, 0))
+	if kind != "gem":   # XP-Kristalle leuchten nicht (nur das Material pulsiert dezent)
+		vfx.glow_sprite(n, gcol, gsize, Vector3(0, 0.15, 0))
 	pickups.append({"node": n, "kind": kind, "value": value, "tier": tier, "pulled": false, "t0": rng.randf() * TAU})
 
 func _update_pickups(delta: float) -> void:
@@ -1974,8 +1977,9 @@ func _update_pickups(delta: float) -> void:
 						_level_up()
 						return
 				"berry":
-						hp = minf(max_hp, hp + 25.0)
-						vfx.number(player.position + Vector3(0, 0.8, 0), 25.0, Color(0.5, 1.0, 0.5))
+						var heal_amt := maxf(25.0, max_hp * 0.15)
+						hp = minf(max_hp, hp + heal_amt)
+						vfx.number(player.position + Vector3(0, 0.8, 0), heal_amt, Color(0.5, 1.0, 0.5))
 				"chest":
 					vfx.firework(player.position, 7, ["gold", "violet", "teal", "pink", "green"], 6.5)
 					vfx.burst("level", player.position + Vector3(0, 1.0, 0))
@@ -2023,12 +2027,28 @@ func _make_cards() -> Array:
 		pool.append({"kind": "passive", "id": id, "lvl": l2})
 	pool.shuffle()
 	var out := pool.slice(0, 3)
+	# Mindestens eine Waffe zur Auswahl, sofern noch eine wählbar ist
+	var has_w := false
+	for c in out:
+		if c["kind"] == "weapon":
+			has_w = true
+	if not has_w:
+		for c in pool:
+			if c["kind"] == "weapon":
+				if out.size() >= 3:
+					out[2] = c
+				else:
+					out.append(c)
+				break
 	# Alle Plätze belegt und ausgebaut -> Splitterbeutel (Meta-Währung) statt leerer Karten
 	if out.size() < 3:
 		out.append({"kind": "gold", "id": "greed", "lvl": 0})
 	if out.size() < 3:
 		out.append({"kind": "heal", "id": "vigor", "lvl": 0})
-	return out
+	# Waffen immer links
+	var ws := out.filter(func(c): return c["kind"] == "weapon")
+	var rest := out.filter(func(c): return c["kind"] != "weapon")
+	return ws + rest
 
 func _gold_amount() -> int:
 	return 15 + int(time / 60.0) * 2
@@ -2096,8 +2116,18 @@ func _build_card(c: Dictionary, idx: int) -> Control:
 	v.add_theme_constant_override("separation", 7)
 	pad.add_child(v)
 	var top := HBoxContainer.new()
-	var kind_l := _label("WAFFE" if is_w else ("PASSIV" if c["kind"] == "passive" else ("BELOHNUNG" if c["kind"] == "gold" else "ERHOLUNG")), 14, Color(accent.r, accent.g, accent.b, 0.9))
-	top.add_child(kind_l)
+	var tag_col := Color(1.0, 0.62, 0.3) if is_w else (Color(0.45, 0.85, 1.0) if c["kind"] == "passive" else (Color(1.0, 0.85, 0.35) if c["kind"] == "gold" else Color(0.55, 1.0, 0.55)))
+	var tag_txt := "⚔  WAFFE" if is_w else ("✚  AUSRÜSTUNG" if c["kind"] == "passive" else ("◆  BELOHNUNG" if c["kind"] == "gold" else "♥  ERHOLUNG"))
+	var kind_l := _label(tag_txt, 17, tag_col)
+	var tag := PanelContainer.new()
+	var tag_sb := _sb(Color(tag_col.r * 0.22, tag_col.g * 0.22, tag_col.b * 0.22, 1), Color(tag_col.r, tag_col.g, tag_col.b, 0.8), 8, 1)
+	tag_sb.content_margin_left = 9
+	tag_sb.content_margin_right = 9
+	tag_sb.content_margin_top = 2
+	tag_sb.content_margin_bottom = 2
+	tag.add_theme_stylebox_override("panel", tag_sb)
+	tag.add_child(kind_l)
+	top.add_child(tag)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
@@ -2373,7 +2403,7 @@ func _spawn_point(bias_dir: Vector3 = Vector3.ZERO) -> Vector3:
 		var a := rng.randf() * TAU
 		if bias_dir != Vector3.ZERO and k < 7:
 			a = atan2(bias_dir.z, bias_dir.x) + rng.randf_range(-1.1, 1.1)
-		var p := player.position + Vector3(cos(a), 0, sin(a)) * rng.randf_range(21.0, 26.0)
+		var p := player.position + Vector3(cos(a), 0, sin(a)) * rng.randf_range(15.0, 19.0)
 		if _in_arena(p, Defs.WALL_INSET + 0.5):
 			return p
 	# Figur steht in einer Ecke: weitester Punkt einer Zufallsauswahl in der Arena

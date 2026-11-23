@@ -83,7 +83,7 @@ func _flies_fire(lvl: int) -> void:
 		var n := Node3D.new()
 		n.position = g.player.position + Vector3(0, 1.3, 0)
 		g.add_child(n)
-		g.vfx.glow_sprite(n, Color(1.0, 0.85, 0.35, 0.95), 0.55)
+		g.vfx.glow_sprite(n, Color(1.0, 0.85, 0.35, 0.57), 0.55)   # 40 % transparenter
 		g.vfx.attach_trail(n, Color(1.0, 0.8, 0.3), 0.06, 16, 0.35)
 		var a := randf() * TAU   # fliegen erst seitlich auseinander, dann aufs Ziel
 		var vel := Vector3(cos(a), 0.6, sin(a)) * 5.0
@@ -139,19 +139,22 @@ func _bramble_drop(delta: float, lvl: int) -> void:
 	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(disc)
 	var thorn_mat := StandardMaterial3D.new()
-	thorn_mat.albedo_color = Color(0.3, 0.42, 0.16)
-	thorn_mat.roughness = 0.8
-	for k in 6:   # kleine Dornen, die aus dem Boden wachsen
+	thorn_mat.albedo_color = Color(0.42, 0.6, 0.2)
+	thorn_mat.roughness = 0.7
+	thorn_mat.emission_enabled = true
+	thorn_mat.emission = Color(0.25, 0.45, 0.1)
+	thorn_mat.emission_energy_multiplier = 0.6
+	for k in 9:   # kleine Dornen, die aus dem Boden wachsen
 		var sp := MeshInstance3D.new()
 		var cm := CylinderMesh.new()
 		cm.top_radius = 0.0
-		cm.bottom_radius = 0.07
-		cm.height = 0.55
+		cm.bottom_radius = 0.15
+		cm.height = 1.1
 		sp.mesh = cm
 		sp.material_override = thorn_mat
-		var a := TAU * k / 6.0 + randf() * 0.6
+		var a := TAU * k / 9.0 + randf() * 0.5
 		var rr := radius * randf_range(0.2, 0.75)
-		sp.position = Vector3(cos(a) * rr, -0.3, sin(a) * rr)
+		sp.position = Vector3(cos(a) * rr, -0.55, sin(a) * rr)
 		sp.rotation = Vector3(randf_range(-0.35, 0.35), 0, randf_range(-0.35, 0.35))
 		root.add_child(sp)
 	patches.append({"node": root, "mat": mat, "t": 0.0, "dur": st["dur"], "radius": radius, "dps": st["dps"], "acc": 0.0})
@@ -165,8 +168,8 @@ func _patches_update(delta: float) -> void:
 		var root: Node3D = p["node"]
 		for c in root.get_children():
 			if c is MeshInstance3D and (c as MeshInstance3D).mesh is CylinderMesh:
-				(c as Node3D).position.y = -0.3 + 0.32 * grow
-		(p["mat"] as StandardMaterial3D).albedo_color.a = 0.12 * grow
+				(c as Node3D).position.y = -0.55 + 0.7 * grow
+		(p["mat"] as StandardMaterial3D).albedo_color.a = 0.2 * grow
 		p["acc"] += delta
 		if p["acc"] >= 0.3:
 			p["acc"] = 0.0
