@@ -589,7 +589,7 @@ func _setup_anim_tree(ap: AnimationPlayer, skin: Dictionary) -> void:
 	for pair in [["idle", 0.0], ["walk", clip_walk_speed], ["run", clip_run_speed]]:
 		var an := AnimationNodeAnimation.new()
 		an.animation = pair[0]
-		loco.add_blend_point(an, pair[1])
+		loco.add_blend_point(an, pair[1], -1, pair[0])
 	bt.add_node("loco", loco)
 	bt.add_node("loco_speed", AnimationNodeTimeScale.new())
 	bt.connect_node("loco_speed", 0, "loco")
@@ -2275,7 +2275,10 @@ func _levelup_fx(head: Label) -> void:
 # Stufe aufsteigen, wenn die Erfahrung reicht. Ein großer Edelstein kann für mehrere Stufen reichen: der Rest bleibt in xp,
 # nach jeder Kartenwahl wird erneut geprüft (sonst klebte der Balken voll bis zum nächsten Edelstein).
 func _try_level_up() -> bool:
-	if dead or xp < xp_next:
+	# Nie zwei Kartenwahlen übereinander (z. B. Edelstein im selben Bild wie die Nachprüfung nach einer Wahl): die zweite
+	# hätte die Karten der ersten mitten in der Einblendung gelöscht ("Lambda capture ... was freed", Wahl hing).
+	# Was übrig ist, prüft der Abschluss der offenen Wahl nach.
+	if dead or xp < xp_next or choice_layer.visible:
 		return false
 	xp -= xp_next
 	level += 1
@@ -2326,7 +2329,7 @@ func _level_up(chest: bool = false) -> void:
 		var cd_: Control = row.get_child(k)
 		cd_.scale = Vector2(0.55, 0.55)
 		cd_.modulate = Color(1, 1, 1, 0)
-		var tw := _ptween()
+		var tw := _ptween().bind_node(cd_)   # an die Karte gebunden: endet mit ihr, greift nie ins Leere
 		tw.tween_interval(0.08 + 0.09 * k)
 		tw.tween_property(cd_, "modulate", Color(1, 1, 1, 1), 0.16)
 		tw.parallel().tween_property(cd_, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -2335,7 +2338,7 @@ func _level_up(chest: bool = false) -> void:
 		tw.tween_property(shn, "position:x", 520.0, 0.5).set_trans(Tween.TRANS_SINE)
 		tw.tween_callback(func(): shn.visible = false)
 		if cd_.get_meta("special", false):   # goldene Karten pulsieren sanft
-			var pulse := _ptween().set_loops()
+			var pulse := _ptween().bind_node(cd_).set_loops()
 			pulse.tween_property(cd_, "self_modulate", Color(1.25, 1.15, 0.9), 0.6).set_trans(Tween.TRANS_SINE)
 			pulse.tween_property(cd_, "self_modulate", Color(1, 1, 1), 0.6).set_trans(Tween.TRANS_SINE)
 			cd_.set_meta("pulse", pulse)
@@ -2700,4 +2703,3 @@ func _process_menu(delta: float) -> void:
 	mdl.rotation.y = face_yaw
 	_update_props()
 	vfx.follow(player.position)
-
