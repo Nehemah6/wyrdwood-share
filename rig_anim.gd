@@ -9,46 +9,46 @@ extends RefCounted
 const CFG := {
 	# Pro Typ nur Datei, echte Größe (längste Seite, m) und Gangart; der Rest kommt aus der Skelett-Erkennung.
 	"imp": {
-		"file": "res://assetdesk/3dmodels/creatures/thorn_imp_v2.glb", "longest": 0.9, "gait": "biped",
+		"file": "res://models/creatures/thorn_imp_v2.glb", "longest": 0.9, "gait": "biped",
 		"amp": 0.6, "freq": 2.6, "bob": 0.03, "lean": 0.15, "arm_amp": 0.8,
 	},
 	"toad": {
-		"file": "res://assetdesk/3dmodels/creatures/bog_toad_v3.glb", "longest": 1.0, "gait": "hop",
+		"file": "res://models/creatures/bog_toad_v3.glb", "longest": 1.0, "gait": "hop",
 		"amp": 0.7, "freq": 1.5, "bob": 0.16,
 	},
 	"wolf": {
-		"file": "res://assetdesk/3dmodels/creatures/moss_wolf_v2.glb", "longest": 1.0, "gait": "diag",
+		"file": "res://models/creatures/moss_wolf_v2.glb", "longest": 1.0, "gait": "diag",
 		"amp": 0.75, "freq": 2.3, "bob": 0.03,
 	},
 	"tank": {
-		"file": "res://assetdesk/3dmodels/creatures/shell_tortoise.glb", "longest": 1.8, "gait": "diag",
+		"file": "res://models/creatures/shell_tortoise.glb", "longest": 1.8, "gait": "diag",
 		"amp": 0.35, "freq": 1.6, "bob": 0.015,
 	},
 	"caster": {
-		"file": "res://assetdesk/3dmodels/creatures/thorn_shaman.glb", "longest": 1.3, "gait": "biped",
+		"file": "res://models/creatures/thorn_shaman.glb", "longest": 1.3, "gait": "biped",
 		"amp": 0.45, "freq": 2.0, "bob": 0.03, "arm_amp": 0.35, "sway": 0.04,
 	},
 	"healer": {
-		"file": "res://assetdesk/3dmodels/creatures/spore_healer_v2.glb", "longest": 0.8, "gait": "biped",
+		"file": "res://models/creatures/spore_healer_v2.glb", "longest": 0.8, "gait": "biped",
 		"amp": 0.55, "freq": 2.4, "bob": 0.05, "arm_amp": 0.5, "sway": 0.06,
 	},
 	"golem": {
-		"file": "res://assetdesk/3dmodels/creatures/root_golem_v2.glb", "longest": 2.4, "gait": "biped",
+		"file": "res://models/creatures/root_golem_v2.glb", "longest": 2.4, "gait": "biped",
 		"amp": 0.3, "freq": 2.0, "bob": 0.035, "lean": 0.0, "arm_amp": 0.45, "sway": 0.07,
 	},
 	"stag": {
-		"file": "res://assetdesk/3dmodels/creatures/corrupted_stag_v2.glb", "longest": 4.0, "gait": "diag",
+		"file": "res://models/creatures/corrupted_stag_v2.glb", "longest": 4.0, "gait": "diag",
 		"amp": 0.5, "freq": 1.7, "bob": 0.02,
 	},
 	# --- Totenacker (Dateien kommen aus dem Asset Desk; fehlt eine, nimmt main.gd den Platzhalter "alt")
-	"ghoul": {"file": "res://assetdesk/3dmodels/creatures/grave_ghoul.glb", "longest": 1.3, "gait": "biped", "amp": 0.6, "freq": 2.5, "bob": 0.04, "lean": 0.25, "arm_amp": 0.9},
-	"skeleton": {"file": "res://assetdesk/3dmodels/creatures/bone_soldier.glb", "longest": 1.6, "gait": "biped", "amp": 0.5, "freq": 2.1, "bob": 0.03, "arm_amp": 0.4, "sway": 0.05},
-	"hound": {"file": "res://assetdesk/3dmodels/creatures/corpse_hound.glb", "longest": 1.2, "gait": "diag", "amp": 0.75, "freq": 2.5, "bob": 0.03},
-	"flesh": {"file": "res://assetdesk/3dmodels/creatures/stitched_brute.glb", "longest": 2.0, "gait": "biped", "amp": 0.3, "freq": 1.6, "bob": 0.04, "arm_amp": 0.4, "sway": 0.08},
-	"witch": {"file": "res://assetdesk/3dmodels/creatures/bone_witch.glb", "longest": 1.5, "gait": "biped", "amp": 0.45, "freq": 2.0, "bob": 0.03, "arm_amp": 0.35, "sway": 0.05},
-	"priest": {"file": "res://assetdesk/3dmodels/creatures/plague_priest.glb", "longest": 1.4, "gait": "biped", "amp": 0.5, "freq": 2.2, "bob": 0.04, "arm_amp": 0.5, "sway": 0.06},
-	"horror": {"file": "res://assetdesk/3dmodels/creatures/bone_abomination.glb", "longest": 2.6, "gait": "biped", "amp": 0.3, "freq": 1.8, "bob": 0.04, "arm_amp": 0.5, "sway": 0.08},
-	"warden": {"file": "res://assetdesk/3dmodels/creatures/grave_warden.glb", "longest": 4.0, "gait": "biped", "amp": 0.35, "freq": 1.5, "bob": 0.03, "arm_amp": 0.3, "sway": 0.05},
+	"ghoul": {"file": "res://models/creatures/grave_ghoul.glb", "longest": 1.3, "gait": "biped", "amp": 0.6, "freq": 2.5, "bob": 0.04, "lean": 0.25, "arm_amp": 0.9},
+	"skeleton": {"file": "res://models/creatures/bone_soldier.glb", "longest": 1.6, "gait": "biped", "amp": 0.5, "freq": 2.1, "bob": 0.03, "arm_amp": 0.4, "sway": 0.05},
+	"hound": {"file": "res://models/creatures/corpse_hound.glb", "longest": 1.2, "gait": "diag", "amp": 0.75, "freq": 2.5, "bob": 0.03},
+	"flesh": {"file": "res://models/creatures/stitched_brute.glb", "longest": 2.0, "gait": "biped", "amp": 0.3, "freq": 1.6, "bob": 0.04, "arm_amp": 0.4, "sway": 0.08},
+	"witch": {"file": "res://models/creatures/bone_witch.glb", "longest": 1.5, "gait": "biped", "amp": 0.45, "freq": 2.0, "bob": 0.03, "arm_amp": 0.35, "sway": 0.05},
+	"priest": {"file": "res://models/creatures/plague_priest.glb", "longest": 1.4, "gait": "biped", "amp": 0.5, "freq": 2.2, "bob": 0.04, "arm_amp": 0.5, "sway": 0.06},
+	"horror": {"file": "res://models/creatures/bone_abomination.glb", "longest": 2.6, "gait": "biped", "amp": 0.3, "freq": 1.8, "bob": 0.04, "arm_amp": 0.5, "sway": 0.08},
+	"warden": {"file": "res://models/creatures/grave_warden.glb", "longest": 4.0, "gait": "biped", "amp": 0.35, "freq": 1.5, "bob": 0.03, "arm_amp": 0.3, "sway": 0.05},
 }
 
 static var types := {}   # Typ -> Dictionary (Cache)

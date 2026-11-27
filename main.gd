@@ -1,7 +1,7 @@
 extends Node3D
 ## Wyrdwood Survivors: Vampire-Survivors-artiges Spiel in 3D (Top-Down) mit Dark-Fairytale-Setting.
 
-const M := "res://assetdesk/3dmodels/"
+const M := "res://models/"
 # Spielfiguren (Skins, Wahl in den Optionen -> Meta.skin, Test: WW_SKIN): Clip-Animationen aus UniMate
 # (idle/walk/run/cast/hit[/hit2]/die, 22 Knochen, schauen nach +Z). upper = Oberkörper-Knochen (Wirbel 2-3, Hals, Kopf,
 # beide Arme) für hit über dem Laufzyklus; cast nimmt upper ohne spine (nur Arme/Hals/Kopf), sonst kippt der Rumpf
@@ -387,10 +387,10 @@ const MODEL_SIZE := {
 	"weapons/thorn_dart.glb": 0.6, "weapons/acorn_bomb.glb": 0.4,
 	"nature/gnarled_tree.glb": 5.0, "nature/mossy_boulder.glb": 1.8, "nature/glow_mushrooms.glb": 0.9,
 	"structures/standing_stone.glb": 3.0, "weapons/moon_scythe.glb": 0.9,
-	"items/spirit_wisp.glb": 0.5, "decor/rune_sigil.glb": 3.0,
+	"items/spirit_wisp.glb": 0.5, "props/rune_sigil.glb": 3.0,
 	# Totenacker
-	"nature/dead_oak.glb": 4.5, "structures/crooked_gravestone.glb": 1.3, "decor/bone_pile.glb": 1.0,
-	"lighting/grave_candles.glb": 0.6, "structures/broken_crypt.glb": 4.0,
+	"nature/dead_oak.glb": 4.5, "structures/crooked_gravestone.glb": 1.3, "props/bone_pile.glb": 1.0,
+	"props/grave_candles.glb": 0.6, "structures/broken_crypt.glb": 4.0,
 	"nature/bramble_hedge.glb": 4.0, "structures/graveyard_fence.glb": 4.0,
 }
 var fit_cache := {}
@@ -512,10 +512,10 @@ func _ground_material() -> StandardMaterial3D:
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3(0.1, 0.1, 0.1)  # 10 m Kachel
-	var dir := "res://assetdesk/textures/%s/" % lv.get("ground", "forest_floor")
+	var dir := "res://textures/%s/" % lv.get("ground", "forest_floor")
 	for fb in ["forest_floor_v3", "forest_floor"]:   # Platzhalter (ohne Glühpunkte zuerst), bis die Level-Textur da ist
 		if DirAccess.open(dir) == null:
-			dir = "res://assetdesk/textures/%s/" % fb
+			dir = "res://textures/%s/" % fb
 	var da := DirAccess.open(dir)
 	if da:
 		for f in da.get_files():
@@ -1825,9 +1825,9 @@ func _make_orb() -> Node3D:
 
 # Runen-Siegel am Boden: taucht auf, dreht sich, versinkt wieder
 func _sigil(pos: Vector3, diameter: float, dur: float) -> void:
-	if _scene_or_null(M + "decor/rune_sigil.glb") == null:
+	if _scene_or_null(M + "props/rune_sigil.glb") == null:
 		return
-	var n := _make_model("decor/rune_sigil.glb", Color.WHITE, 3.0)
+	var n := _make_model("props/rune_sigil.glb", Color.WHITE, 3.0)
 	n.position = Vector3(pos.x, -0.3, pos.z)
 	n.scale = Vector3(1, 0.3, 1) * (diameter / 3.0) * 0.6
 	add_child(n)

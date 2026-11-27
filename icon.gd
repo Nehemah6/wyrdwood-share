@@ -1,6 +1,6 @@
 class_name Icon
 extends Control
-## Symbol für Waffen/Passive. Nimmt das Asset-Desk-Icon (res://assetdesk/textures/icon_<id>/…), dann res://ui/icons/<id>.png, sonst ein Vektorsymbol.
+## Symbol für Waffen/Passive. Nimmt das Asset-Desk-Icon (res://textures/icon_<id>/…), dann res://ui/icons/<id>.png, sonst ein Vektorsymbol.
 
 static var _tex := {}
 
@@ -30,7 +30,7 @@ static func _texture(id: String) -> Texture2D:
 		return _tex[id]
 	# Reihenfolge: Asset-Desk-Library (textures/icon_<id>) vor ui/icons/<id>.png vor Vektor-Platzhalter
 	var t: Texture2D = null
-	for path in ["res://assetdesk/textures/icon_%s/icon_%s_albedo.png" % [id, id], "res://ui/icons/%s.png" % id]:
+	for path in ["res://textures/icon_%s/icon_%s_albedo.png" % [id, id], "res://ui/icons/%s.png" % id]:
 		if ResourceLoader.exists(path):
 			t = load(path)
 			break
